@@ -20,7 +20,11 @@ import {
   MessageCircle,
   Store,
   Headphones,
+  CheckCircle2,
+  Scale,
+  Wallet,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useComplaintStore } from '@/store/complaintStore';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -233,6 +237,112 @@ export default function MerchantComplaintDetail() {
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-3">
+          <div className="card overflow-hidden p-5 bg-gradient-to-r from-neutral-50 to-white">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <div className={cn(
+                  'w-14 h-14 rounded-xl flex items-center justify-center',
+                  complaint.status === 'mediating' || complaint.status === 'assigned' ? 'bg-primary-100' :
+                  complaint.status === 'arbitrating' ? 'bg-warning-100' :
+                  complaint.status === 'awarded' ? 'bg-success-100' :
+                  'bg-neutral-100'
+                )}>
+                  {complaint.status === 'mediating' || complaint.status === 'assigned' ? (
+                    <MessageSquare size={28} className="text-primary-600" />
+                  ) : complaint.status === 'arbitrating' ? (
+                    <Scale size={28} className="text-warning-600" />
+                  ) : complaint.status === 'awarded' ? (
+                    <CheckCircle2 size={28} className="text-success-600" />
+                  ) : (
+                    <FileText size={28} className="text-neutral-500" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-neutral-500">当前案件阶段</p>
+                  <h3 className="text-xl font-bold text-neutral-800 mt-0.5">
+                    {complaint.status === 'pending' && '待分派'}
+                    {complaint.status === 'assigned' && '客服调解中'}
+                    {complaint.status === 'mediating' && '客服调解中'}
+                    {complaint.status === 'arbitrating' && '待仲裁裁决'}
+                    {complaint.status === 'awarded' && '已裁决'}
+                    {complaint.status === 'mediated' && '调解完成'}
+                    {complaint.status === 'closed' && '已结案'}
+                  </h3>
+                  <p className="text-sm text-neutral-500 mt-0.5">
+                    {complaint.status === 'mediating' && complaint.serviceName
+                      ? `由 ${complaint.serviceName} 处理中`
+                      : complaint.status === 'arbitrating' && complaint.arbitratorName
+                      ? `仲裁员 ${complaint.arbitratorName} 审理中`
+                      : complaint.status === 'awarded' && complaint.award
+                      ? `裁决赔付 ${formatCurrency(complaint.award.compensationAmount)}`
+                      : ''}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                {[
+                  { key: 'pending', label: '提交' },
+                  { key: 'assigned', label: '调解' },
+                  { key: 'arbitrating', label: '仲裁' },
+                  { key: 'awarded', label: '裁决' },
+                  { key: 'closed', label: '赔付' },
+                ].map((stage, idx, arr) => {
+                  const stageOrder = ['pending', 'assigned', 'mediating', 'arbitrating', 'awarded', 'mediated', 'closed'];
+                  const currentIdx = stageOrder.indexOf(complaint.status);
+                  const thisIdx = stageOrder.indexOf(stage.key);
+                  const isDone = thisIdx <= currentIdx;
+                  const isCurrent = complaint.status === stage.key ||
+                    (stage.key === 'assigned' && (complaint.status === 'assigned' || complaint.status === 'mediating')) ||
+                    (stage.key === 'awarded' && complaint.status === 'awarded');
+
+                  return (
+                    <div key={stage.key} className="flex items-center">
+                      <div className="flex flex-col items-center">
+                        <div className={cn(
+                          'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all',
+                          isCurrent
+                            ? 'bg-primary-500 text-white ring-4 ring-primary-100 scale-110'
+                            : isDone
+                            ? 'bg-success-500 text-white'
+                            : 'bg-neutral-200 text-neutral-500'
+                        )}>
+                          {isDone && !isCurrent ? <CheckCircle2 size={14} /> : idx + 1}
+                        </div>
+                        <span className={cn(
+                          'text-[11px] mt-1.5 font-medium whitespace-nowrap',
+                          isCurrent ? 'text-primary-700 font-bold' : isDone ? 'text-success-600' : 'text-neutral-400'
+                        )}>
+                          {stage.label}
+                        </span>
+                      </div>
+                      {idx < arr.length - 1 && (
+                        <div className={cn(
+                          'w-10 h-0.5 -mt-4 mx-0.5',
+                          isDone ? 'bg-success-400' : 'bg-neutral-200'
+                        )} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {complaint.award && (
+                  <button
+                    onClick={() => navigate('/merchant/compensations')}
+                    className="btn btn-primary btn-sm gap-1.5"
+                  >
+                    <Wallet size={14} />
+                    查看赔付记录
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-6 xl:col-span-2">
           <div className="card overflow-hidden">
             <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50">

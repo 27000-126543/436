@@ -284,6 +284,13 @@ export default function MerchantCompensationList() {
                     </td>
                     <td className="table-cell text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => navigate(`/merchant/complaints/${c.complaintId}`)}
+                          className="btn btn-ghost btn-xs gap-1 text-primary-600 hover:text-primary-700"
+                        >
+                          <ExternalLink size={12} />
+                          查看投诉
+                        </button>
                         {c.voucherUrl || c.status === 'paid' ? (
                           <button
                             onClick={() => handleDownload(c.id)}

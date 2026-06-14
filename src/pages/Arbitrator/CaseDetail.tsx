@@ -24,6 +24,7 @@ import {
   X,
   Headphones,
   Paperclip,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useComplaintStore } from '@/store/complaintStore';
@@ -50,9 +51,14 @@ export default function CaseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuthStore();
-  const { getComplaintById, submitAward, addMessage } = useComplaintStore();
+  const { getComplaintById, submitAward, addMessage, complaints } = useComplaintStore();
 
   const complaint = useMemo(() => (id ? getComplaintById(id) : undefined), [id, getComplaintById]);
+
+  const originalCase = useMemo(() => {
+    if (!complaint?.parentComplaintId) return undefined;
+    return getComplaintById(complaint.parentComplaintId);
+  }, [complaint?.parentComplaintId, getComplaintById]);
 
   const [liability, setLiability] = useState<LiabilityType>('merchant');
   const [merchantPercent, setMerchantPercent] = useState<number>(100);
@@ -179,12 +185,24 @@ export default function CaseDetail() {
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/arbitrator/cases')}
-            className="w-10 h-10 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 flex items-center justify-center transition-colors"
-          >
-            <ArrowLeft size={18} className="text-neutral-600" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/arbitrator/cases')}
+              className="w-10 h-10 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 flex items-center justify-center transition-colors"
+              title="返回案件池"
+            >
+              <ArrowLeft size={18} className="text-neutral-600" />
+            </button>
+            {complaint.isReArbitration && complaint.parentComplaintId && (
+              <button
+                onClick={() => navigate(`/arbitrator/cases/${complaint.parentComplaintId}`)}
+                className="btn btn-secondary btn-sm gap-1.5"
+              >
+                <RotateCcw size={14} />
+                查看原案件
+              </button>
+            )}
+          </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold text-neutral-800 font-display">裁决工作台</h1>
@@ -197,6 +215,76 @@ export default function CaseDetail() {
                   终裁案件
                 </span>
               )}
+            </div>
+            {complaint.isReArbitration && (
+              <div className="mt-3 flex items-center gap-2 flex-wrap bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-3 border border-purple-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-neutral-200 flex items-center justify-center">
+                    <span className="text-[10px] font-bold text-neutral-600">1</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-neutral-500">原案件</span>
+                    {originalCase ? (
+                      <button
+                        onClick={() => navigate(`/arbitrator/cases/${originalCase.id}`)}
+                        className="text-sm font-mono text-primary-600 hover:text-primary-700 hover:underline font-medium"
+                      >
+                        {originalCase.id}
+                      </button>
+                    ) : (
+                      <span className="text-sm font-mono text-neutral-400">{complaint.parentComplaintId}</span>
+                    )}
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-purple-400" />
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center">
+                    <span className="text-[10px] font-bold text-white">2</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-purple-500">当前复核（终裁）</span>
+                    <span className="text-sm font-mono text-purple-700 font-bold">{complaint.id}</span>
+                  </div>
+                </div>
+                {originalCase?.award && (
+                  <div className="ml-auto flex items-center gap-2 bg-white/80 px-3 py-1.5 rounded border border-purple-200">
+                    <Shield size={14} className="text-purple-600" />
+                    <span className="text-xs text-neutral-600">
+                      原裁决：
+                      <span className="font-medium text-purple-700">
+                        {formatCurrency(originalCase.award.compensationAmount)}
+                      </span>
+                    </span>
+                    <button
+                      onClick={() => navigate(`/arbitrator/cases/${originalCase.id}`)}
+                      className="text-xs text-primary-600 hover:underline font-medium ml-1"
+                    >
+                      查看原裁决 →
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {!complaint.isReArbitration && complaints.some(c => c.parentComplaintId === complaint.id) && (
+              <div className="mt-3 flex items-center gap-2 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 border border-amber-200">
+                <Shield size={16} className="text-amber-600" />
+                <span className="text-xs text-amber-800">
+                  该案件已申请再次仲裁，系统已生成终裁复核案件
+                </span>
+                {(() => {
+                  const reviewCase = complaints.find(c => c.parentComplaintId === complaint.id);
+                  return reviewCase ? (
+                    <button
+                      onClick={() => navigate(`/arbitrator/cases/${reviewCase.id}`)}
+                      className="text-xs text-amber-700 hover:underline font-semibold"
+                    >
+                      查看复核案件 →
+                    </button>
+                  ) : null;
+                })()}
+              </div>
+            )}
+            <div className="flex items-center gap-2 flex-wrap mt-1">
               {isHighAmount && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold rounded-full">
                   <Crown size={12} />
@@ -562,6 +650,46 @@ export default function CaseDetail() {
         </div>
 
         <div className="p-6 space-y-6">
+          <div className="mb-4 pb-4 border-b border-neutral-100">
+            <div className="flex items-center justify-between">
+              {[
+                { label: '案件分配', done: !!complaint.arbitrationAssignedAt, time: complaint.arbitrationAssignedAt },
+                { label: '材料核查', done: !!complaint.serviceEvidence || (complaint.merchantAppeal && complaint.evidence.length > 0), time: null },
+                { label: complaint.isReArbitration ? '终裁裁决' : '仲裁裁决', done: !!complaint.award, time: complaint.award?.createdAt },
+                { label: '赔付执行', done: complaint.status === 'awarded' || complaint.status === 'closed', time: complaint.award?.createdAt },
+              ].map((step, idx, arr) => (
+                <div key={idx} className="flex items-center flex-1 last:flex-none">
+                  <div className="flex flex-col items-center">
+                    <div className={cn(
+                      'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all',
+                      step.done
+                        ? 'bg-success-500 text-white'
+                        : 'bg-neutral-200 text-neutral-500'
+                    )}>
+                      {step.done ? <CheckCircle2 size={16} /> : idx + 1}
+                    </div>
+                    <span className={cn(
+                      'text-xs mt-1.5 font-medium whitespace-nowrap',
+                      step.done ? 'text-success-700' : 'text-neutral-500'
+                    )}>
+                      {step.label}
+                    </span>
+                    {step.time && (
+                      <span className="text-[10px] text-neutral-400 mt-0.5">
+                        {formatDate(step.time, 'short')}
+                      </span>
+                    )}
+                  </div>
+                  {idx < arr.length - 1 && (
+                    <div className={cn(
+                      'flex-1 h-0.5 mx-2 -mt-6',
+                      step.done ? 'bg-success-400' : 'bg-neutral-200'
+                    )} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
           <div>
             <label className="text-sm font-semibold text-neutral-700 mb-3 block flex items-center gap-1.5">
               <Scale size={14} className="text-primary-600" />

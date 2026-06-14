@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Scale,
   Search,
@@ -44,7 +44,14 @@ const filterTabs: { key: FilterTab; label: string; icon: React.ReactNode; desc: 
 
 export default function CaseList() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [searchParams] = useSearchParams();
+  const initialFilter = searchParams.get('filter') as FilterTab | null;
+  const [activeTab, setActiveTab] = useState<FilterTab>(() => {
+    if (initialFilter && ['all', 'pending', 'awarded', 'review'].includes(initialFilter)) {
+      return initialFilter;
+    }
+    return 'all';
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');

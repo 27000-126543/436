@@ -176,9 +176,15 @@ export default function ArbitratorDashboard() {
       iconBg: 'bg-success-100',
       label: '本月裁决',
       value: awardedThisMonth.length,
-      subValue: `累计 ${totalAwarded} 件`,
+      subValue: awardedThisMonth.length > 0 ? `最近裁决 ${awardedThisMonth[0].orderInfo.productName.slice(0, 12)}...` : '点击查看全部裁决',
       trend: { value: 8, up: true },
-      onClick: () => navigate('/arbitrator/cases/CP20250612001'),
+      onClick: () => {
+        if (awardedThisMonth.length > 0) {
+          navigate(`/arbitrator/cases/${awardedThisMonth[0].id}`);
+        } else {
+          navigate('/arbitrator/cases');
+        }
+      },
     },
     {
       icon: <Target size={22} className="text-warning-600" />,
@@ -194,7 +200,7 @@ export default function ArbitratorDashboard() {
       iconBg: 'bg-info-100',
       label: '裁决历史',
       value: totalAwarded,
-      subValue: '查看全部裁决案件',
+      subValue: '点击查看所有已裁决案件',
       subColor: 'text-primary-600 font-medium',
       trend: { value: 5, up: true },
       onClick: () => navigate('/arbitrator/cases'),
@@ -323,7 +329,7 @@ export default function ArbitratorDashboard() {
                     if (item.id.startsWith('case-')) {
                       navigate(`/arbitrator/cases/${item.caseId}`);
                     } else if (item.id.startsWith('review-')) {
-                      navigate(`/arbitrator/cases/${item.parentComplaintId || item.caseId}`);
+                      navigate(`/arbitrator/cases/${item.caseId}`);
                     } else {
                       navigate('/messages');
                     }
@@ -346,7 +352,9 @@ export default function ArbitratorDashboard() {
                       <div className="flex items-center gap-2">
                         <span className={cn(
                           'text-xs font-medium px-1.5 py-0.5 rounded',
-                          item.urgent ? 'bg-danger-100 text-danger-700' : 'bg-neutral-200 text-neutral-700'
+                          item.type === '紧急案件' ? 'bg-danger-100 text-danger-700' :
+                          item.type === '复核案件' ? 'bg-purple-100 text-purple-700' :
+                          'bg-info-100 text-info-700'
                         )}>
                           {item.type}
                         </span>
@@ -400,7 +408,14 @@ export default function ArbitratorDashboard() {
             <tbody>
               {myCases.slice(0, 5).map((c) => (
                 <tr key={c.id} className="hover:bg-neutral-50 transition-colors">
-                  <td className="table-cell font-mono text-xs text-primary-600 font-medium">{c.id}</td>
+                  <td className="table-cell font-mono text-xs text-primary-600 font-medium">
+                    {c.id}
+                    {c.isReArbitration && (
+                      <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-[10px] rounded font-medium">
+                        终裁
+                      </span>
+                    )}
+                  </td>
                   <td className="table-cell">
                     <span className="badge badge-primary">{COMPLAINT_TYPE_LABELS[c.type]}</span>
                   </td>
@@ -432,9 +447,14 @@ export default function ArbitratorDashboard() {
                   <td className="table-cell text-right">
                     <button
                       onClick={() => navigate(`/arbitrator/cases/${c.id}`)}
-                      className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                      className={cn(
+                        'text-sm font-medium hover:underline',
+                        c.award ? 'text-success-600 hover:text-success-700' :
+                        c.isReArbitration ? 'text-purple-600 hover:text-purple-700' :
+                        'text-primary-600 hover:text-primary-700'
+                      )}
                     >
-                      {c.award ? '查看裁决' : '立即裁决'}
+                      {c.award ? '查看裁决' : c.isReArbitration ? '处理终裁' : '立即裁决'}
                     </button>
                   </td>
                 </tr>
