@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   User,
@@ -25,6 +25,7 @@ import {
   Headphones,
   Paperclip,
   RotateCcw,
+  Award as AwardIcon,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useComplaintStore } from '@/store/complaintStore';
@@ -34,6 +35,7 @@ import {
   type Evidence,
   type Award,
 } from '@/types';
+import { CaseTimeline } from '@/components/CaseTimeline';
 import {
   formatCurrency,
   formatDate,
@@ -50,10 +52,18 @@ type LiabilityType = 'merchant' | 'both' | 'consumer';
 export default function CaseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromMessages = searchParams.get('from') === 'messages';
   const { currentUser } = useAuthStore();
-  const { getComplaintById, submitAward, addMessage, complaints } = useComplaintStore();
+  const { getComplaintById, submitAward, complaints } = useComplaintStore();
 
   const complaint = useMemo(() => (id ? getComplaintById(id) : undefined), [id, getComplaintById]);
+  const { compensations } = useComplaintStore();
+
+  const currentCompensation = useMemo(() => {
+    if (!complaint) return undefined;
+    return compensations.find(c => c.complaintId === complaint.id);
+  }, [complaint, compensations]);
 
   const originalCase = useMemo(() => {
     if (!complaint?.parentComplaintId) return undefined;
@@ -120,16 +130,6 @@ export default function CaseDetail() {
       isFinal: complaint.isReArbitration ? true : undefined,
     });
 
-    addMessage({
-      recipientId: complaint.consumerId,
-      recipientRole: 'consumer',
-      type: 'award_published',
-      title: '仲裁结果已发布',
-      content: `您的投诉（${complaint.orderInfo.productName.slice(0, 20)}...）已作出仲裁裁决${compensationAmount > 0 ? `，赔付金额${formatCurrency(compensationAmount)}` : ''}。`,
-      relatedId: complaint.id,
-      relatedType: 'award',
-    });
-
     setShowConfirmModal(false);
   };
 
@@ -186,6 +186,15 @@ export default function CaseDetail() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
+            {fromMessages && (
+              <button
+                onClick={() => navigate('/messages')}
+                className="btn btn-secondary btn-sm gap-1.5"
+              >
+                <ArrowLeft size={14} />
+                返回消息
+              </button>
+            )}
             <button
               onClick={() => navigate('/arbitrator/cases')}
               className="w-10 h-10 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 flex items-center justify-center transition-colors"
@@ -217,6 +226,7 @@ export default function CaseDetail() {
               )}
             </div>
             {complaint.isReArbitration && (
+              <>
               <div className="mt-3 flex items-center gap-2 flex-wrap bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-3 border border-purple-100">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-neutral-200 flex items-center justify-center">
@@ -264,6 +274,184 @@ export default function CaseDetail() {
                   </div>
                 )}
               </div>
+
+              {/* 复核案件：原裁决 vs 终裁对比 */}
+              {originalCase?.award && (
+                <div className="card overflow-hidden bg-gradient-to-br from-purple-50/50 via-white to-indigo-50/50 mt-4">
+                  <div className="px-5 py-4 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-b border-purple-100">
+                    <h3 className="font-semibold text-neutral-800 flex items-center gap-2">
+                      <Scale className="w-5 h-5 text-purple-600" />
+                      原裁决 vs 终裁裁决 对比
+                      <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                        复核案件专属
+                      </span>
+                    </h3>
+                  </div>
+                  <div className="p-5">
+                    <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+                      {/* 原裁决 */}
+                      <div className="md:col-span-3 bg-white rounded-xl border border-neutral-200 p-4">
+                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-neutral-100">
+                          <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-neutral-500" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-neutral-700 text-sm">原裁决</p>
+                            <p className="text-xs text-neutral-400">{originalCase.id}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs text-neutral-400 mb-0.5">仲裁员</p>
+                            <p className="text-sm font-medium text-neutral-700">{originalCase.arbitratorName}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-neutral-400 mb-0.5">裁决时间</p>
+                            <p className="text-sm text-neutral-700">{formatDate(originalCase.award.createdAt, 'full')}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-neutral-400 mb-0.5">责任判定</p>
+                            <span className={cn(
+                              'inline-block text-xs px-2 py-0.5 rounded font-medium',
+                              originalCase.award.liability === 'merchant' ? 'bg-danger-100 text-danger-700' :
+                              originalCase.award.liability === 'both' ? 'bg-warning-100 text-warning-700' :
+                              'bg-success-100 text-success-700'
+                            )}>
+                              {originalCase.award.liability === 'merchant' ? '商家全责' :
+                               originalCase.award.liability === 'both' ? '双方责任' : '消费者责任'}
+                              {originalCase.award.merchantLiabilityPercent > 0 && 
+                               ` (${originalCase.award.merchantLiabilityPercent}%)`}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-xs text-neutral-400 mb-0.5">赔付金额</p>
+                            <p className="text-lg font-bold text-neutral-800">
+                              {formatCurrency(originalCase.award.compensationAmount)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-neutral-400 mb-0.5">裁决摘要</p>
+                            <p className="text-xs text-neutral-600 leading-relaxed line-clamp-3">
+                              {originalCase.award.content}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={() => navigate(`/arbitrator/cases/${originalCase.id}`)}
+                          className="w-full mt-4 text-xs text-primary-600 hover:text-primary-700 font-medium py-2 border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors"
+                        >
+                          查看原案件详情 →
+                        </button>
+                      </div>
+
+                      {/* VS 分隔 */}
+                      <div className="hidden md:flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center text-sm font-bold shadow-lg">
+                          VS
+                        </div>
+                      </div>
+                      <div className="md:hidden flex justify-center -my-1">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-lg">
+                          VS
+                        </div>
+                      </div>
+
+                      {/* 终裁裁决 */}
+                      <div className="md:col-span-3 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl border-2 border-purple-300 p-4 relative">
+                        <div className="absolute -top-2 right-3">
+                          <span className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">
+                            终裁
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-purple-200">
+                          <div className="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center">
+                            <AwardIcon className="w-4 h-4 text-purple-700" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-purple-800 text-sm">终裁裁决（当前）</p>
+                            <p className="text-xs text-purple-400">{complaint.id}</p>
+                          </div>
+                        </div>
+                        
+                        {complaint.award ? (
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-xs text-purple-400 mb-0.5">仲裁员</p>
+                              <p className="text-sm font-medium text-purple-700">{complaint.arbitratorName}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-purple-400 mb-0.5">裁决时间</p>
+                              <p className="text-sm text-purple-700">{formatDate(complaint.award.createdAt, 'full')}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-purple-400 mb-0.5">责任判定</p>
+                              <span className={cn(
+                                'inline-block text-xs px-2 py-0.5 rounded font-medium',
+                                complaint.award.liability === 'merchant' ? 'bg-danger-100 text-danger-700' :
+                                complaint.award.liability === 'both' ? 'bg-warning-100 text-warning-700' :
+                                'bg-success-100 text-success-700'
+                              )}>
+                                {complaint.award.liability === 'merchant' ? '商家全责' :
+                                 complaint.award.liability === 'both' ? '双方责任' : '消费者责任'}
+                                {complaint.award.merchantLiabilityPercent > 0 && 
+                                 ` (${complaint.award.merchantLiabilityPercent}%)`}
+                              </span>
+                              {complaint.award.liability !== originalCase.award.liability && (
+                                <span className="ml-1 text-[10px] text-danger-600 font-bold">变更</span>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-xs text-purple-400 mb-0.5">赔付金额</p>
+                              <div className="flex items-baseline gap-2">
+                                <p className="text-lg font-bold text-purple-800">
+                                  {formatCurrency(complaint.award.compensationAmount)}
+                                </p>
+                                {complaint.award.compensationAmount !== originalCase.award.compensationAmount && (
+                                  <span className={cn(
+                                    'text-xs font-bold',
+                                    complaint.award.compensationAmount > originalCase.award.compensationAmount
+                                      ? 'text-danger-600' : 'text-success-600'
+                                  )}>
+                                    {complaint.award.compensationAmount > originalCase.award.compensationAmount ? '↑' : '↓'}
+                                    {formatCurrency(Math.abs(complaint.award.compensationAmount - originalCase.award.compensationAmount))}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-xs text-purple-400 mb-0.5">裁决摘要</p>
+                              <p className="text-xs text-purple-700 leading-relaxed line-clamp-3">
+                                {complaint.award.content}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="py-8 text-center">
+                            <Clock className="w-10 h-10 text-purple-300 mx-auto mb-2" />
+                            <p className="text-sm text-purple-500 font-medium">待终裁裁决</p>
+                            <p className="text-xs text-purple-400 mt-1">请在下方作出终裁决定</p>
+                          </div>
+                        )}
+                        
+                        {!complaint.award && (
+                          <p className="text-[10px] text-purple-500 mt-3 text-center">
+                            ⚖️ 本裁决为终裁结果，一经作出即为最终结论
+                          </p>
+                        )}
+                        {complaint.award && (
+                          <p className="text-[10px] text-purple-500 mt-3 text-center">
+                            ✅ 终裁已作出，为最终裁决结果
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              </>
             )}
             {!complaint.isReArbitration && complaints.some(c => c.parentComplaintId === complaint.id) && (
               <div className="mt-3 flex items-center gap-2 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 border border-amber-200">
@@ -629,6 +817,8 @@ export default function CaseDetail() {
           </div>
         </div>
       )}
+
+      {complaint && <CaseTimeline complaint={complaint} compensation={currentCompensation} />}
 
       <div className="card overflow-hidden border-primary-200 bg-gradient-to-b from-primary-50/30 to-white">
         <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-5 py-4 flex items-center justify-between">

@@ -9,6 +9,8 @@ import {
   User,
   Building2,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   AlertCircle,
   CheckCircle2,
   RotateCcw,
@@ -53,6 +55,7 @@ export default function CaseList() {
     return 'all';
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const { currentUser } = useAuthStore();
@@ -102,6 +105,35 @@ export default function CaseList() {
     return result;
   }, [myCases, activeTab, searchQuery, typeFilter, priorityFilter]);
 
+  const awardedGroups = useMemo(() => {
+    if (activeTab !== 'awarded') return null;
+
+    const awarded = filteredCases.filter(c => c.award);
+    const now = new Date();
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const thisMonthCases = awarded.filter(c => {
+      const awardDate = new Date(c.award!.createdAt);
+      return awardDate >= thisMonth;
+    });
+
+    const earlierCases = awarded.filter(c => {
+      const awardDate = new Date(c.award!.createdAt);
+      return awardDate < thisMonth;
+    });
+
+    const sortFn = (a: Complaint, b: Complaint) => {
+      const dateA = new Date(a.award!.createdAt).getTime();
+      const dateB = new Date(b.award!.createdAt).getTime();
+      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    };
+
+    thisMonthCases.sort(sortFn);
+    earlierCases.sort(sortFn);
+
+    return { thisMonthCases, earlierCases };
+  }, [filteredCases, activeTab, sortOrder]);
+
   const tabCounts = useMemo(() => ({
     all: myCases.length,
     pending: myCases.filter(c => c.status === 'arbitrating' && !c.award).length,
@@ -138,6 +170,195 @@ export default function CaseList() {
         <Clock size={12} />
         {remaining.days > 0 ? `${remaining.days}天${remaining.hours}小时` : `${remaining.hours}小时${remaining.minutes}分`}
       </span>
+    );
+  };
+
+  const renderCaseCard = (complaint: Complaint) => {
+    const highAmt = isHighAmount(complaint.amount);
+    return (
+      <div
+        key={complaint.id}
+        onClick={() => navigate(`/arbitrator/cases/${complaint.id}`)}
+        className={cn(
+          'card card-hover cursor-pointer p-5 transition-all',
+          highAmt && 'border-warning-300 bg-gradient-to-r from-warning-50/50 to-transparent'
+        )}
+      >
+        <div className="flex items-start gap-5">
+          <div className="flex-shrink-0">
+            <img
+              src={complaint.orderInfo.productImage}
+              alt=""
+              className={cn(
+                'w-20 h-20 rounded-lg object-cover border-2',
+                highAmt ? 'border-warning-300' : 'border-neutral-200'
+              )}
+            />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-3">
+              {complaint.isReArbitration && !complaint.award && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-xs font-bold rounded-full shadow-sm">
+                  <RotateCcw size={12} />
+                  终裁复核
+                </span>
+              )}
+              {complaint.isReArbitration && complaint.award && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-xs font-bold rounded-full shadow-sm">
+                  <Award size={12} />
+                  终裁完成
+                </span>
+              )}
+              {!complaint.isReArbitration && !complaint.award && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-primary-500 to-blue-600 text-white text-xs font-bold rounded-full shadow-sm">
+                  <Clock size={12} />
+                  待裁决
+                </span>
+              )}
+              {!complaint.isReArbitration && complaint.award && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-success-500 to-emerald-600 text-white text-xs font-bold rounded-full shadow-sm">
+                  <CheckCircle2 size={12} />
+                  已裁决
+                </span>
+              )}
+              {highAmt && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold rounded-full shadow-sm">
+                  <Crown size={12} />
+                  高金额
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-xs text-primary-600 font-semibold bg-primary-50 px-2 py-0.5 rounded">
+                    {complaint.id}
+                  </span>
+                  <span className={cn('badge', getStatusBadgeClass(complaint.status))}>
+                    {COMPLAINT_STATUS_LABELS[complaint.status]}
+                  </span>
+                  <span className={cn('badge', getPriorityBadgeClass(complaint.priority))}>
+                    {PRIORITY_LABELS[complaint.priority]}
+                  </span>
+                  <span className="badge badge-info">
+                    {COMPLAINT_TYPE_LABELS[complaint.type]}
+                  </span>
+                </div>
+                <h3 className="text-base font-semibold text-neutral-800 mt-2 line-clamp-1">
+                  {complaint.title}
+                </h3>
+              </div>
+
+              <div className="text-right flex-shrink-0">
+                <p className={cn(
+                  'text-2xl font-bold font-display',
+                  highAmt ? 'text-orange-600' : 'text-neutral-800'
+                )}>
+                  {formatCurrency(complaint.amount)}
+                </p>
+                {complaint.award && (
+                  <div className="mt-1.5 p-2 bg-success-50 rounded-lg text-left">
+                    <p className="text-[10px] text-success-600 font-medium">裁决金额</p>
+                    <p className="text-sm font-bold text-success-700">
+                      {formatCurrency(complaint.award.compensationAmount)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+              <div className="flex items-center gap-2 text-neutral-600">
+                <div className="w-7 h-7 rounded-full bg-info-100 flex items-center justify-center flex-shrink-0">
+                  <User size={13} className="text-info-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-neutral-500">消费者</p>
+                  <p className="font-medium text-neutral-800 text-xs">{complaint.consumerName}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-neutral-600">
+                <div className="w-7 h-7 rounded-full bg-warning-100 flex items-center justify-center flex-shrink-0">
+                  <Building2 size={13} className="text-warning-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-neutral-500">商家</p>
+                  <p className="font-medium text-neutral-800 text-xs line-clamp-1">{complaint.orderInfo.merchantName}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-neutral-600">
+                <div className="w-7 h-7 rounded-full bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                  <Clock size={13} className="text-neutral-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-neutral-500">收到时间</p>
+                  <p className="font-medium text-neutral-800 text-xs">
+                    {formatDate(complaint.arbitrationAssignedAt || complaint.createdAt, 'short')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-start">
+                {!complaint.award ? (
+                  <TimeRemainingBadge complaint={complaint} />
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-success-600 bg-success-50 px-2 py-1 rounded">
+                    <Award size={12} />
+                    {formatRelativeTime(complaint.award.createdAt)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <p className="text-xs text-neutral-500 mt-3 line-clamp-2 bg-neutral-50 p-3 rounded-lg">
+              {complaint.description}
+            </p>
+
+            {complaint.award && (
+              <div className="mt-3 p-3 bg-gradient-to-r from-success-50 to-emerald-50 border border-success-100 rounded-lg">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Award size={14} className="text-success-600" />
+                    <span className="text-xs text-success-700 font-medium">裁决时间：</span>
+                    <span className="text-xs text-success-800 font-semibold">
+                      {formatDate(complaint.award.createdAt, 'short')}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={14} className="text-success-600" />
+                    <span className="text-xs text-success-700 font-medium">裁决金额：</span>
+                    <span className="text-sm text-success-800 font-bold">
+                      {formatCurrency(complaint.award.compensationAmount)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-shrink-0 flex flex-col items-end justify-between h-20">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/arbitrator/cases/${complaint.id}`);
+              }}
+              className={cn(
+                'btn gap-1.5',
+                complaint.award ? 'btn-secondary' : 'btn-primary'
+              )}
+            >
+              {complaint.award ? '查看裁决' : '领取裁决'}
+              <ChevronRight size={14} />
+            </button>
+            {complaint.arbitratorName && (
+              <span className="text-[10px] text-neutral-500">
+                仲裁员：{complaint.arbitratorName}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -247,6 +468,39 @@ export default function CaseList() {
                   </div>
 
                   <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-3">
+                      {complaint.isReArbitration && !complaint.award && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-xs font-bold rounded-full shadow-sm">
+                          <RotateCcw size={12} />
+                          终裁复核
+                        </span>
+                      )}
+                      {complaint.isReArbitration && complaint.award && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-xs font-bold rounded-full shadow-sm">
+                          <Award size={12} />
+                          终裁完成
+                        </span>
+                      )}
+                      {!complaint.isReArbitration && !complaint.award && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-primary-500 to-blue-600 text-white text-xs font-bold rounded-full shadow-sm">
+                          <Clock size={12} />
+                          待裁决
+                        </span>
+                      )}
+                      {!complaint.isReArbitration && complaint.award && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-success-500 to-emerald-600 text-white text-xs font-bold rounded-full shadow-sm">
+                          <CheckCircle2 size={12} />
+                          已裁决
+                        </span>
+                      )}
+                      {highAmt && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold rounded-full shadow-sm">
+                          <Crown size={12} />
+                          高金额
+                        </span>
+                      )}
+                    </div>
+
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -262,18 +516,6 @@ export default function CaseList() {
                           <span className="badge badge-info">
                             {COMPLAINT_TYPE_LABELS[complaint.type]}
                           </span>
-                          {complaint.isReArbitration && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-xs font-bold rounded-full">
-                              <RotateCcw size={12} />
-                              复核案件
-                            </span>
-                          )}
-                          {highAmt && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold rounded-full shadow-sm">
-                              <Crown size={12} />
-                              高金额 ¥{highAmountThreshold}+
-                            </span>
-                          )}
                         </div>
                         <h3 className="text-base font-semibold text-neutral-800 mt-2 line-clamp-1">
                           {complaint.title}
@@ -288,9 +530,12 @@ export default function CaseList() {
                           {formatCurrency(complaint.amount)}
                         </p>
                         {complaint.award && (
-                          <p className="text-xs text-success-600 mt-0.5 font-medium">
-                            已赔付 {formatCurrency(complaint.award.compensationAmount)}
-                          </p>
+                          <div className="mt-1.5 p-2 bg-success-50 rounded-lg text-left">
+                            <p className="text-[10px] text-success-600 font-medium">裁决金额</p>
+                            <p className="text-sm font-bold text-success-700">
+                              {formatCurrency(complaint.award.compensationAmount)}
+                            </p>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -340,6 +585,27 @@ export default function CaseList() {
                     <p className="text-xs text-neutral-500 mt-3 line-clamp-2 bg-neutral-50 p-3 rounded-lg">
                       {complaint.description}
                     </p>
+
+                    {complaint.award && (
+                      <div className="mt-3 p-3 bg-gradient-to-r from-success-50 to-emerald-50 border border-success-100 rounded-lg">
+                        <div className="flex items-center gap-4 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <Award size={14} className="text-success-600" />
+                            <span className="text-xs text-success-700 font-medium">裁决时间：</span>
+                            <span className="text-xs text-success-800 font-semibold">
+                              {formatDate(complaint.award.createdAt, 'short')}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 size={14} className="text-success-600" />
+                            <span className="text-xs text-success-700 font-medium">裁决金额：</span>
+                            <span className="text-sm text-success-800 font-bold">
+                              {formatCurrency(complaint.award.compensationAmount)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex-shrink-0 flex flex-col items-end justify-between h-20">

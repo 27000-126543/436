@@ -228,16 +228,53 @@ export default function MessagesPage() {
       markMessageRead(message.id);
     }
 
-    // 根据消息类型和关联类型跳转到不同页面
-    if (message.relatedType === 'complaint') {
-      navigate(`/consumer/complaints/${message.relatedId}`);
-    } else if (message.relatedType === 'award') {
-      navigate('/consumer/awards');
-    } else if (message.relatedType === 'compensation') {
-      navigate('/consumer/awards');
-    } else if (message.relatedType === 'credit') {
-      navigate('/merchant/credit');
+    let path = '';
+    const fromParam = 'from=messages';
+
+    switch (message.type) {
+      case 'complaint_assigned':
+        if (message.recipientRole === 'service') {
+          path = `/service/complaints/${message.relatedId}?${fromParam}`;
+        } else if (message.recipientRole === 'merchant') {
+          path = `/merchant/complaints/${message.relatedId}?${fromParam}`;
+        } else {
+          path = `/consumer/complaints/${message.relatedId}?${fromParam}`;
+        }
+        break;
+      case 'mediation_needed':
+        path = `/service/complaints/${message.relatedId}?${fromParam}`;
+        break;
+      case 'arbitration_needed':
+        path = `/arbitrator/cases/${message.relatedId}?${fromParam}`;
+        break;
+      case 'award_published':
+        if (message.recipientRole === 'merchant') {
+          path = `/merchant/complaints/${message.relatedId}?${fromParam}`;
+        } else {
+          path = `/consumer/complaints/${message.relatedId}?${fromParam}`;
+        }
+        break;
+      case 'credit_changed':
+        path = `/merchant/credit?${fromParam}`;
+        break;
+      case 'compensation_done':
+        path = `/merchant/compensations?complaintId=${message.relatedId}&${fromParam}`;
+        break;
+      case 'timeout_warning':
+        if (message.recipientRole === 'service') {
+          path = `/service/complaints?${fromParam}`;
+        } else if (message.recipientRole === 'merchant') {
+          path = `/merchant/complaints?${fromParam}`;
+        } else {
+          path = `/arbitrator/cases?${fromParam}`;
+        }
+        break;
+      case 'system':
+      default:
+        return;
     }
+
+    navigate(path);
   };
 
   // 获取消息图标
@@ -525,13 +562,15 @@ export default function MessagesPage() {
                                       <Circle className="w-4 h-4" />
                                     )}
                                   </button>
-                                  <button
-                                    onClick={() => handleNavigateToRelated(message)}
-                                    className="p-1.5 rounded-lg hover:bg-primary-100 text-primary-500 transition-all"
-                                    title="查看详情"
-                                  >
-                                    <ArrowRight className="w-4 h-4" />
-                                  </button>
+                                  {message.type !== 'system' && (
+                                    <button
+                                      onClick={() => handleNavigateToRelated(message)}
+                                      className="p-1.5 rounded-lg hover:bg-primary-100 text-primary-500 transition-all"
+                                      title="查看详情"
+                                    >
+                                      <ArrowRight className="w-4 h-4" />
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -584,16 +623,18 @@ export default function MessagesPage() {
                                     >
                                       收起
                                     </button>
-                                    <button
-                                      onClick={e => {
-                                        e.stopPropagation();
-                                        handleNavigateToRelated(message);
-                                      }}
-                                      className="btn btn-primary !py-1.5 !px-3 text-xs gap-1"
-                                    >
-                                      查看详情
-                                      <ArrowRight className="w-3.5 h-3.5" />
-                                    </button>
+                                    {message.type !== 'system' && (
+                                      <button
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          handleNavigateToRelated(message);
+                                        }}
+                                        className="btn btn-primary !py-1.5 !px-3 text-xs gap-1"
+                                      >
+                                        前往查看
+                                        <ArrowRight className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               </div>

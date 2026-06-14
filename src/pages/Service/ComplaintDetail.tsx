@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Clock, CheckCircle, Circle, User, MessageSquare,
   FileText, Upload, Image, Video, File, Send, AlertTriangle,
@@ -16,13 +16,16 @@ import {
 import { cn } from '@/lib/utils';
 import {
   COMPLAINT_STATUS_LABELS, COMPLAINT_TYPE_LABELS, PRIORITY_LABELS,
-  type Complaint, type TimelineStep, type Evidence,
+  type Complaint, type Evidence,
   type CommunicationRecord, type MediationRecord
 } from '@/types';
+import { CaseTimeline } from '@/components/CaseTimeline';
 
 const ServiceComplaintDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromMessages = searchParams.get('from') === 'messages';
   const { getComplaintById, submitMediation, setConsumerSatisfaction, addServiceEvidence, addCommunicationRecord } = useComplaintStore();
   const { currentUser } = useAuthStore();
 
@@ -59,86 +62,7 @@ const ServiceComplaintDetail: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [communicationRecords]);
 
-  // 处理进度时间线
-  const timeline = useMemo<TimelineStep[]>(() => {
-    if (!complaint) return [];
-    const steps: TimelineStep[] = [];
 
-    steps.push({
-      id: '1',
-      title: '投诉已提交',
-      description: '消费者已提交投诉申请',
-      time: complaint.createdAt,
-      status: 'completed',
-      handler: complaint.consumerName,
-    });
-
-    if (complaint.assignedAt) {
-      steps.push({
-        id: '2',
-        title: '已分派给您',
-        description: '您已接手处理此投诉案件',
-        time: complaint.assignedAt,
-        status: 'completed',
-        handler: complaint.serviceName,
-      });
-    }
-
-    if (complaint.merchantAppeal) {
-      steps.push({
-        id: '3',
-        title: '商家已申诉',
-        description: '商家已提交申诉材料',
-        time: complaint.merchantAppeal.submittedAt,
-        status: 'completed',
-        handler: complaint.orderInfo.merchantName,
-      });
-    }
-
-    if (complaint.mediationRecord) {
-      steps.push({
-        id: '4',
-        title: '调解方案已提交',
-        description: '您已提交调解方案，等待消费者确认',
-        time: complaint.mediationRecord.createdAt,
-        status: complaint.consumerSatisfied !== undefined ? 'completed' : 'active',
-        handler: complaint.serviceName,
-      });
-    } else if (['assigned', 'mediating'].includes(complaint.status)) {
-      steps.push({
-        id: '4',
-        title: '调解进行中',
-        description: '正在与双方沟通，准备调解方案',
-        time: complaint.assignedAt || complaint.createdAt,
-        status: 'active',
-        handler: complaint.serviceName,
-      });
-    }
-
-    if (complaint.arbitrationAssignedAt) {
-      steps.push({
-        id: '5',
-        title: '已升级仲裁',
-        description: '案件已转入仲裁流程',
-        time: complaint.arbitrationAssignedAt,
-        status: complaint.award ? 'completed' : 'active',
-        handler: complaint.arbitratorName,
-      });
-    }
-
-    if (complaint.consumerSatisfied === true) {
-      steps.push({
-        id: '6',
-        title: '案件已结案',
-        description: '消费者确认满意，调解成功',
-        time: complaint.updatedAt,
-        status: 'completed',
-        handler: '系统',
-      });
-    }
-
-    return steps;
-  }, [complaint]);
 
   // 发送新消息
   const handleSendMessage = () => {
@@ -374,13 +298,24 @@ const ServiceComplaintDetail: React.FC = () => {
       <div className="bg-white border-b border-neutral-200 px-6 py-4 sticky top-0 z-40">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/service')}
-              className="btn btn-ghost gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              返回列表
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate('/service')}
+                className="btn btn-ghost gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                返回列表
+              </button>
+              {fromMessages && (
+                <button
+                  onClick={() => navigate('/messages')}
+                  className="btn btn-secondary btn-sm gap-1.5"
+                >
+                  <ArrowLeft size={14} />
+                  返回消息
+                </button>
+              )}
+            </div>
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold text-neutral-800">
@@ -684,51 +619,7 @@ const ServiceComplaintDetail: React.FC = () => {
 
         {/* 右侧边栏 - 30% */}
         <div className="w-[30%] p-6 pl-0 space-y-6">
-          {/* 处理进度时间线 */}
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold text-neutral-800 mb-6 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary-500" />
-              处理进度
-            </h3>
-            <div className="relative">
-              {timeline.map((step, index) => (
-                <div key={step.id} className="relative pl-8 pb-6 last:pb-0">
-                  {/* 连接线 */}
-                  {index < timeline.length - 1 && (
-                    <div className="absolute left-3 top-6 bottom-0 w-0.5 bg-neutral-200" />
-                  )}
-                  {/* 时间点 */}
-                  <div className={cn(
-                    "absolute left-1.5 top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm",
-                    step.status === 'completed' ? "bg-success-500" :
-                    step.status === 'active' ? "bg-primary-500" : "bg-neutral-300"
-                  )}>
-                    {step.status === 'completed' && (
-                      <CheckCircle className="w-3 h-3 text-white -mt-0.5 -ml-0.5" />
-                    )}
-                    {step.status === 'active' && (
-                      <div className="w-2 h-2 bg-white rounded-full mt-0.5 ml-0.5 animate-pulse" />
-                    )}
-                  </div>
-                  {/* 内容 */}
-                  <div>
-                    <p className={cn(
-                      "font-medium",
-                      step.status === 'completed' ? "text-success-700" :
-                      step.status === 'active' ? "text-primary-700" : "text-neutral-400"
-                    )}>
-                      {step.title}
-                    </p>
-                    <p className="text-sm text-neutral-500 mt-1">{step.description}</p>
-                    <p className="text-xs text-neutral-400 mt-1">
-                      {formatRelativeTime(step.time)}
-                      {step.handler && ` · ${step.handler}`}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <CaseTimeline complaint={complaint} />
 
           {/* 消费者满意度确认 */}
           <div className="card p-6">

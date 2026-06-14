@@ -176,15 +176,9 @@ export default function ArbitratorDashboard() {
       iconBg: 'bg-success-100',
       label: '本月裁决',
       value: awardedThisMonth.length,
-      subValue: awardedThisMonth.length > 0 ? `最近裁决 ${awardedThisMonth[0].orderInfo.productName.slice(0, 12)}...` : '点击查看全部裁决',
+      subValue: `共 ${awardedThisMonth.length} 条本月裁决`,
       trend: { value: 8, up: true },
-      onClick: () => {
-        if (awardedThisMonth.length > 0) {
-          navigate(`/arbitrator/cases/${awardedThisMonth[0].id}`);
-        } else {
-          navigate('/arbitrator/cases');
-        }
-      },
+      onClick: () => navigate('/arbitrator/cases?filter=awarded'),
     },
     {
       icon: <Target size={22} className="text-warning-600" />,
@@ -200,10 +194,10 @@ export default function ArbitratorDashboard() {
       iconBg: 'bg-info-100',
       label: '裁决历史',
       value: totalAwarded,
-      subValue: '点击查看所有已裁决案件',
+      subValue: `共 ${totalAwarded} 条历史裁决`,
       subColor: 'text-primary-600 font-medium',
       trend: { value: 5, up: true },
-      onClick: () => navigate('/arbitrator/cases'),
+      onClick: () => navigate('/arbitrator/cases?filter=all'),
     },
   ];
 

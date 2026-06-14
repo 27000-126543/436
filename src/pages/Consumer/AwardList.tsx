@@ -46,7 +46,7 @@ const PAGE_SIZE = 5;
 export default function AwardList() {
   const navigate = useNavigate();
   const { currentUser } = useAuthStore();
-  const { getConsumerComplaints, requestReArbitration } = useComplaintStore();
+  const { getConsumerComplaints, requestReArbitration, compensations } = useComplaintStore();
 
   // 当前消费者ID，默认为测试用户
   const consumerId = currentUser?.id || 'consumer_001';
@@ -271,6 +271,7 @@ export default function AwardList() {
                     <th className="table-header text-left">裁决时间</th>
                     <th className="table-header text-left">裁决结果</th>
                     <th className="table-header text-left">赔付金额</th>
+                    <th className="table-header text-left">赔付状态</th>
                     <th className="table-header text-left">仲裁员</th>
                     <th className="table-header text-left">状态</th>
                     <th className="table-header text-right">操作</th>
@@ -338,6 +339,23 @@ export default function AwardList() {
                             {formatCurrency(complaint.award?.compensationAmount || 0)}
                           </span>
                         </div>
+                      </td>
+                      <td className="table-cell">
+                        {(() => {
+                          const comp = compensations.find(co => co.complaintId === complaint.id);
+                          return comp ? (
+                            <span className={cn(
+                              'text-[10px] px-1.5 py-0.5 rounded font-medium',
+                              comp.status === 'paid' ? 'bg-success-100 text-success-700' :
+                              comp.status === 'failed' ? 'bg-danger-100 text-danger-700' :
+                              'bg-warning-100 text-warning-700'
+                            )}>
+                              {comp.status === 'paid' ? '已到账' : comp.status === 'failed' ? '打款失败' : '待打款'}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-neutral-400">-</span>
+                          );
+                        })()}
                       </td>
                       <td className="table-cell">
                         <div className="flex items-center gap-1.5 text-sm text-neutral-600">

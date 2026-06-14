@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Clock,
@@ -31,6 +31,9 @@ import {
   ChevronUp,
   Paperclip,
   Headphones,
+  Wallet,
+  CheckCircle2,
+  Download,
 } from 'lucide-react';
 import { useComplaintStore } from '@/store/complaintStore';
 import { useAuthStore } from '@/store/authStore';
@@ -54,7 +57,9 @@ import { cn } from '@/lib/utils';
 export default function ComplaintDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getComplaintById, setConsumerSatisfaction, addEvidence } =
+  const [searchParams] = useSearchParams();
+  const fromMessages = searchParams.get('from') === 'messages';
+  const { getComplaintById, compensations, setConsumerSatisfaction, addEvidence } =
     useComplaintStore();
   const { currentUser } = useAuthStore();
 
@@ -67,6 +72,16 @@ export default function ComplaintDetail() {
     () => (id ? getComplaintById(id) : undefined),
     [id, getComplaintById]
   );
+
+  const currentCompensation = useMemo(() => {
+    if (!complaint) return undefined;
+    return compensations.find(c => c.complaintId === complaint.id);
+  }, [compensations, complaint]);
+
+  const originalCase = useMemo(() => {
+    if (!complaint?.parentComplaintId) return undefined;
+    return getComplaintById(complaint.parentComplaintId);
+  }, [complaint?.parentComplaintId, getComplaintById]);
 
   // 证据类型图标映射
   const getEvidenceIcon = (type: Evidence['type']) => {
@@ -263,12 +278,23 @@ export default function ComplaintDetail() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate('/consumer/complaints')}
-          className="btn btn-ghost !p-2"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/consumer/complaints')}
+            className="btn btn-ghost !p-2"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          {fromMessages && (
+            <button
+              onClick={() => navigate('/messages')}
+              className="btn btn-secondary btn-sm gap-1.5"
+            >
+              <ArrowLeft size={14} />
+              返回消息
+            </button>
+          )}
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-bold text-neutral-800 truncate">
@@ -665,6 +691,209 @@ export default function ComplaintDetail() {
                     {formatDate(complaint.award.createdAt, 'date')}
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {complaint.isReArbitration && originalCase?.award && complaint.award && (
+            <div className="card overflow-hidden border-purple-200">
+              <div className="px-5 py-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-200">
+                <h3 className="font-semibold text-neutral-800 flex items-center gap-2">
+                  <Scale className="w-5 h-5 text-purple-600" />
+                  复核裁决对比
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                    终裁结果
+                  </span>
+                </h3>
+                <p className="text-xs text-neutral-500 mt-1">
+                  原案件 {complaint.parentComplaintId} 的裁决已由另一位仲裁员复核
+                </p>
+              </div>
+              <div className="p-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="rounded-xl border border-neutral-200 p-4 bg-neutral-50/50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-full bg-neutral-200 flex items-center justify-center">
+                        <FileText className="w-3.5 h-3.5 text-neutral-600" />
+                      </div>
+                      <span className="text-sm font-semibold text-neutral-600">原裁决</span>
+                      <span className="text-[10px] text-neutral-400">{formatDate(originalCase.award.createdAt, 'short')}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-neutral-500">责任判定</span>
+                        <span className={cn(
+                          'text-xs px-2 py-0.5 rounded font-medium',
+                          originalCase.award.liability === 'merchant' ? 'bg-danger-100 text-danger-700' :
+                          originalCase.award.liability === 'both' ? 'bg-warning-100 text-warning-700' :
+                          'bg-success-100 text-success-700'
+                        )}>
+                          {originalCase.award.liability === 'merchant' ? '商家全责' :
+                           originalCase.award.liability === 'both' ? '双方责任' : '消费者责任'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-neutral-500">赔付金额</span>
+                        <span className="text-sm font-bold text-neutral-700">{formatCurrency(originalCase.award.compensationAmount)}</span>
+                      </div>
+                      <div className="pt-2 border-t border-neutral-200">
+                        <p className="text-xs text-neutral-400 mb-1">裁决摘要</p>
+                        <p className="text-xs text-neutral-600 leading-relaxed line-clamp-2">{originalCase.award.content}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border-2 border-purple-300 p-4 bg-gradient-to-br from-purple-50 to-indigo-50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-full bg-purple-200 flex items-center justify-center">
+                        <Shield className="w-3.5 h-3.5 text-purple-700" />
+                      </div>
+                      <span className="text-sm font-semibold text-purple-700">终裁裁决</span>
+                      <span className="text-[10px] bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-1.5 py-0.5 rounded-full font-bold">终裁</span>
+                      <span className="text-[10px] text-purple-400">{formatDate(complaint.award.createdAt, 'short')}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-purple-500">责任判定</span>
+                        <div className="flex items-center gap-1">
+                          <span className={cn(
+                            'text-xs px-2 py-0.5 rounded font-medium',
+                            complaint.award.liability === 'merchant' ? 'bg-danger-100 text-danger-700' :
+                            complaint.award.liability === 'both' ? 'bg-warning-100 text-warning-700' :
+                            'bg-success-100 text-success-700'
+                          )}>
+                            {complaint.award.liability === 'merchant' ? '商家全责' :
+                             complaint.award.liability === 'both' ? '双方责任' : '消费者责任'}
+                          </span>
+                          {complaint.award.liability !== originalCase.award.liability && (
+                            <span className="text-[10px] text-danger-600 font-bold">变更</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-purple-500">赔付金额</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-sm font-bold text-purple-800">{formatCurrency(complaint.award.compensationAmount)}</span>
+                          {complaint.award.compensationAmount !== originalCase.award.compensationAmount && (
+                            <span className={cn(
+                              'text-[10px] font-bold',
+                              complaint.award.compensationAmount > originalCase.award.compensationAmount
+                                ? 'text-danger-600' : 'text-success-600'
+                            )}>
+                              {complaint.award.compensationAmount > originalCase.award.compensationAmount ? '↑' : '↓'}
+                              {formatCurrency(Math.abs(complaint.award.compensationAmount - originalCase.award.compensationAmount))}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="pt-2 border-t border-purple-200">
+                        <p className="text-xs text-purple-400 mb-1">终裁摘要</p>
+                        <p className="text-xs text-purple-700 leading-relaxed line-clamp-2">{complaint.award.content}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[10px] text-purple-500 mt-3 text-center">
+                  ✅ 终裁为最终裁决结果
+                </p>
+              </div>
+            </div>
+          )}
+
+          {complaint.award && (
+            <div className="card overflow-hidden">
+              <div className="px-5 py-4 border-b border-neutral-200 bg-gradient-to-r from-success-50 to-emerald-50">
+                <h3 className="font-semibold text-neutral-800 flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-success-600" />
+                  赔付进度
+                </h3>
+              </div>
+              <div className="p-5">
+                {currentCompensation ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-neutral-500">赔付金额</p>
+                        <p className="text-2xl font-bold text-neutral-800">{formatCurrency(currentCompensation.amount)}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className={cn(
+                          'inline-flex items-center gap-1 text-sm font-semibold px-3 py-1.5 rounded-full',
+                          currentCompensation.status === 'paid'
+                            ? 'bg-success-100 text-success-700'
+                            : currentCompensation.status === 'failed'
+                            ? 'bg-danger-100 text-danger-700'
+                            : 'bg-warning-100 text-warning-700'
+                        )}>
+                          {currentCompensation.status === 'paid' && <CheckCircle2 size={16} />}
+                          {currentCompensation.status === 'failed' && <AlertCircle size={16} />}
+                          {currentCompensation.status === 'pending' && <Clock size={16} />}
+                          {currentCompensation.status === 'paid' ? '已到账' :
+                           currentCompensation.status === 'failed' ? '打款失败' : '待打款'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all duration-500',
+                            currentCompensation.status === 'paid'
+                              ? 'bg-success-500 w-full'
+                              : currentCompensation.status === 'failed'
+                              ? 'bg-danger-500 w-1/2'
+                              : 'bg-warning-500 w-1/3 animate-pulse'
+                          )}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-2">
+                        <span className="text-[10px] text-neutral-400">裁决作出</span>
+                        <span className="text-[10px] text-neutral-400">财务打款</span>
+                        <span className={cn(
+                          'text-[10px]',
+                          currentCompensation.status === 'paid' ? 'text-success-600 font-medium' : 'text-neutral-400'
+                        )}>
+                          到账确认
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-neutral-50 rounded-lg p-3 space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-neutral-500">赔付单号</span>
+                        <span className="text-xs font-mono text-neutral-700">{currentCompensation.id}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-neutral-500">生成时间</span>
+                        <span className="text-xs text-neutral-700">{formatDate(currentCompensation.createdAt, 'full')}</span>
+                      </div>
+                      {currentCompensation.paidAt && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-neutral-500">到账时间</span>
+                          <span className="text-xs text-success-700 font-medium">{formatDate(currentCompensation.paidAt, 'full')}</span>
+                        </div>
+                      )}
+                      {currentCompensation.voucherUrl && (
+                        <button
+                          onClick={() => window.open(currentCompensation.voucherUrl, '_blank')}
+                          className="w-full text-xs text-primary-600 hover:text-primary-700 font-medium py-2 border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors flex items-center justify-center gap-1 mt-1"
+                        >
+                          <Download size={12} />
+                          下载打款凭证
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <Clock size={32} className="mx-auto text-neutral-300 mb-2" />
+                    <p className="text-sm text-neutral-500">赔付单待生成</p>
+                    <p className="text-xs text-neutral-400 mt-1">
+                      裁决赔付金额 {formatCurrency(complaint.award.compensationAmount)}，财务正在处理中
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}

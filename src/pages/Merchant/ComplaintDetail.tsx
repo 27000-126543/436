@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Clock,
@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   Scale,
   Wallet,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useComplaintStore } from '@/store/complaintStore';
@@ -39,14 +40,27 @@ import {
   PRIORITY_LABELS,
   type Evidence,
 } from '@/types';
+import { CaseTimeline } from '@/components/CaseTimeline';
 
 export default function MerchantComplaintDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getComplaintById, submitMerchantAppeal } = useComplaintStore();
+  const [searchParams] = useSearchParams();
+  const fromMessages = searchParams.get('from') === 'messages';
+  const { getComplaintById, complaints, submitMerchantAppeal, compensations } = useComplaintStore();
   const { currentUser } = useAuthStore();
 
   const complaint = useMemo(() => (id ? getComplaintById(id) : undefined), [id, getComplaintById]);
+
+  const originalCase = useMemo(() => {
+    if (!complaint?.parentComplaintId) return undefined;
+    return getComplaintById(complaint.parentComplaintId);
+  }, [complaint?.parentComplaintId, getComplaintById]);
+
+  const currentCompensation = useMemo(() => {
+    if (!complaint) return undefined;
+    return compensations.find(c => c.complaintId === complaint.id);
+  }, [complaint, compensations]);
 
   const [appealContent, setAppealContent] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<Evidence[]>([]);
@@ -106,6 +120,10 @@ export default function MerchantComplaintDetail() {
       evidence: uploadedFiles,
     });
     setIsSubmitting(false);
+  };
+
+  const handleDownloadVoucher = (id: string) => {
+    alert(`模拟下载赔付凭证：${id}.pdf`);
   };
 
   const getStatusBadgeClass = () => {
@@ -173,9 +191,20 @@ export default function MerchantComplaintDetail() {
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/merchant/complaints')} className="btn btn-ghost !p-2">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate('/merchant/complaints')} className="btn btn-ghost !p-2">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            {fromMessages && (
+              <button
+                onClick={() => navigate('/messages')}
+                className="btn btn-secondary btn-sm gap-1.5"
+              >
+                <ArrowLeft size={14} />
+                返回消息
+              </button>
+            )}
+          </div>
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-neutral-800">投诉详情</h1>
@@ -292,35 +321,89 @@ export default function MerchantComplaintDetail() {
                   const stageOrder = ['pending', 'assigned', 'mediating', 'arbitrating', 'awarded', 'mediated', 'closed'];
                   const currentIdx = stageOrder.indexOf(complaint.status);
                   const thisIdx = stageOrder.indexOf(stage.key);
-                  const isDone = thisIdx <= currentIdx;
-                  const isCurrent = complaint.status === stage.key ||
+                  let isDone = thisIdx <= currentIdx;
+                  let isCurrent = complaint.status === stage.key ||
                     (stage.key === 'assigned' && (complaint.status === 'assigned' || complaint.status === 'mediating')) ||
                     (stage.key === 'awarded' && complaint.status === 'awarded');
+                  let stageLabel = stage.label;
+                  let dotClass = '';
+                  let labelClass = '';
+                  let showCheck = isDone && !isCurrent;
+
+                  if (stage.key === 'closed') {
+                    if (complaint.status === 'awarded' || complaint.status === 'closed') {
+                      if (currentCompensation) {
+                        if (currentCompensation.status === 'paid') {
+                          isDone = true;
+                          isCurrent = false;
+                          stageLabel = '已赔付';
+                          dotClass = 'bg-success-500 text-white';
+                          labelClass = 'text-success-600';
+                          showCheck = true;
+                        } else if (currentCompensation.status === 'failed') {
+                          isDone = false;
+                          isCurrent = true;
+                          stageLabel = '打款失败';
+                          dotClass = 'bg-danger-500 text-white ring-4 ring-danger-100 scale-110';
+                          labelClass = 'text-danger-700 font-bold';
+                        } else {
+                          isDone = false;
+                          isCurrent = true;
+                          stageLabel = '赔付中';
+                          dotClass = 'bg-warning-500 text-white ring-4 ring-warning-100 scale-110';
+                          labelClass = 'text-warning-700 font-bold';
+                        }
+                      } else {
+                        isDone = false;
+                        isCurrent = true;
+                        stageLabel = '待赔付';
+                        dotClass = 'bg-warning-500 text-white ring-4 ring-warning-100 scale-110';
+                        labelClass = 'text-warning-700 font-bold';
+                      }
+                    } else {
+                      isDone = false;
+                      isCurrent = false;
+                      stageLabel = '待赔付';
+                    }
+                  }
+
+                  if (stage.key !== 'closed') {
+                    dotClass = isCurrent
+                      ? 'bg-primary-500 text-white ring-4 ring-primary-100 scale-110'
+                      : isDone
+                      ? 'bg-success-500 text-white'
+                      : 'bg-neutral-200 text-neutral-500';
+                    labelClass = isCurrent ? 'text-primary-700 font-bold' : isDone ? 'text-success-600' : 'text-neutral-400';
+                  }
+
+                  const lineIsDone = stage.key === 'closed'
+                    ? currentCompensation?.status === 'paid'
+                    : isDone;
 
                   return (
                     <div key={stage.key} className="flex items-center">
                       <div className="flex flex-col items-center">
                         <div className={cn(
                           'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all',
-                          isCurrent
+                          dotClass || (isCurrent
                             ? 'bg-primary-500 text-white ring-4 ring-primary-100 scale-110'
                             : isDone
                             ? 'bg-success-500 text-white'
-                            : 'bg-neutral-200 text-neutral-500'
+                            : 'bg-neutral-200 text-neutral-500')
                         )}>
-                          {isDone && !isCurrent ? <CheckCircle2 size={14} /> : idx + 1}
+                          {showCheck ? <CheckCircle2 size={14} /> : idx + 1}
                         </div>
                         <span className={cn(
                           'text-[11px] mt-1.5 font-medium whitespace-nowrap',
-                          isCurrent ? 'text-primary-700 font-bold' : isDone ? 'text-success-600' : 'text-neutral-400'
+                          labelClass
                         )}>
-                          {stage.label}
+                          {stageLabel}
                         </span>
                       </div>
                       {idx < arr.length - 1 && (
                         <div className={cn(
                           'w-10 h-0.5 -mt-4 mx-0.5',
-                          isDone ? 'bg-success-400' : 'bg-neutral-200'
+                          lineIsDone ? 'bg-success-400' : 'bg-neutral-200'
                         )} />
                       )}
                     </div>
@@ -328,17 +411,49 @@ export default function MerchantComplaintDetail() {
                 })}
               </div>
 
-              <div className="flex items-center gap-2">
-                {complaint.award && (
-                  <button
-                    onClick={() => navigate('/merchant/compensations')}
-                    className="btn btn-primary btn-sm gap-1.5"
-                  >
-                    <Wallet size={14} />
-                    查看赔付记录
-                  </button>
-                )}
-              </div>
+              {complaint.award && (
+                <div className="bg-white rounded-lg border border-neutral-200 p-4 min-w-[240px]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-neutral-500">赔付单</span>
+                    {currentCompensation ? (
+                      <span className={`badge ${
+                        currentCompensation.status === 'paid' ? 'badge-success' :
+                        currentCompensation.status === 'failed' ? 'badge-danger' : 'badge-warning'
+                      }`}>
+                        {currentCompensation.status === 'paid' ? '已赔付' :
+                         currentCompensation.status === 'failed' ? '打款失败' : '待打款'}
+                      </span>
+                    ) : (
+                      <span className="badge badge-neutral">待生成</span>
+                    )}
+                  </div>
+                  <p className="text-lg font-bold text-neutral-800">
+                    {formatCurrency(complaint.award.compensationAmount)}
+                  </p>
+                  {currentCompensation && (
+                    <>
+                      <p className="text-xs text-neutral-400 mt-1 font-mono">{currentCompensation.id}</p>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => navigate(`/merchant/compensations?complaintId=${complaint.id}`)}
+                          className="text-xs text-primary-600 hover:underline font-medium"
+                        >
+                          查看详情 →
+                        </button>
+                        {(currentCompensation.voucherUrl || currentCompensation.status === 'paid') && (
+                          <button
+                            onClick={() => handleDownloadVoucher(currentCompensation.id)}
+                            className="text-xs text-neutral-500 hover:text-neutral-700 font-medium inline-flex items-center gap-1"
+                          >
+                            <Download className="w-3 h-3" />
+                            下载凭证
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -712,104 +827,7 @@ export default function MerchantComplaintDetail() {
         </div>
 
         <div className="space-y-6">
-          <div className="card overflow-hidden">
-            <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50">
-              <h3 className="font-semibold text-neutral-800">处理进度</h3>
-            </div>
-            <div className="p-5">
-              <div className="relative pl-6">
-                <div className="absolute left-1.5 top-1 bottom-1 w-0.5 bg-neutral-200" />
-                {[
-                  {
-                    title: '投诉提交',
-                    time: complaint.createdAt,
-                    status: 'completed',
-                    desc: '消费者已提交投诉',
-                  },
-                  {
-                    title: '分派处理',
-                    time: complaint.assignedAt,
-                    status: complaint.assignedAt ? 'completed' : 'pending',
-                    desc: complaint.serviceName
-                      ? `由 ${complaint.serviceName} 接手`
-                      : '等待分派',
-                  },
-                  {
-                    title: '商家申诉',
-                    time: complaint.merchantAppeal?.submittedAt,
-                    status: complaint.merchantAppeal
-                      ? 'completed'
-                      : complaint.status === 'assigned' || complaint.status === 'mediating'
-                      ? 'active'
-                      : 'pending',
-                    desc: complaint.merchantAppeal ? '已提交申诉' : isTimeout ? '已超时' : '等待商家回应',
-                  },
-                  {
-                    title: '调解/仲裁',
-                    time: complaint.mediationRecord?.createdAt || complaint.arbitrationAssignedAt,
-                    status:
-                      complaint.mediationRecord || complaint.arbitratorName
-                        ? 'completed'
-                        : 'pending',
-                    desc: complaint.arbitratorName
-                      ? `仲裁员：${complaint.arbitratorName}`
-                      : complaint.serviceName
-                      ? '调解进行中'
-                      : '尚未开始',
-                  },
-                  {
-                    title: '处理完成',
-                    time: complaint.award?.createdAt,
-                    status:
-                      complaint.status === 'closed' || complaint.status === 'awarded'
-                        ? 'completed'
-                        : 'pending',
-                    desc:
-                      complaint.status === 'closed'
-                        ? '已结案'
-                        : complaint.status === 'awarded'
-                        ? '已裁决'
-                        : '待处理',
-                  },
-                ].map((step, idx) => (
-                  <div key={idx} className="relative pb-6 last:pb-0">
-                    <div
-                      className={`absolute -left-6 top-0.5 w-4 h-4 rounded-full border-2 border-white ${
-                        step.status === 'completed'
-                          ? 'bg-success-500'
-                          : step.status === 'active'
-                          ? 'bg-primary-500 animate-pulse'
-                          : 'bg-neutral-300'
-                      }`}
-                    />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4
-                          className={`font-medium text-sm ${
-                            step.status === 'pending' ? 'text-neutral-400' : 'text-neutral-800'
-                          }`}
-                        >
-                          {step.title}
-                        </h4>
-                      </div>
-                      <p
-                        className={`text-xs mt-0.5 ${
-                          step.status === 'pending' ? 'text-neutral-400' : 'text-neutral-500'
-                        }`}
-                      >
-                        {step.desc}
-                      </p>
-                      {step.time && (
-                        <p className="text-xs text-neutral-400 mt-1">
-                          {formatDate(step.time, 'date')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          {complaint && <CaseTimeline complaint={complaint} compensation={currentCompensation} />}
 
           <div className="card overflow-hidden">
             <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50">

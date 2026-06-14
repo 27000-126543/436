@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CreditCard,
   Wallet,
@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   XCircle,
   FileText,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useComplaintStore } from '@/store/complaintStore';
@@ -19,14 +20,24 @@ import { formatCurrency, formatDate } from '@/utils/format';
 
 export default function MerchantCompensationList() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromMessages = searchParams.get('from') === 'messages';
   const { currentUser } = useAuthStore();
   const { getMerchantComplaints, compensations } = useComplaintStore();
 
   const merchantId = currentUser?.id ?? 'merchant_001';
   const merchantName = currentUser?.merchantName ?? '优品数码旗舰店';
 
+  const complaintIdFilter = searchParams.get('complaintId');
+
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    if (complaintIdFilter) {
+      setSearchTerm(complaintIdFilter);
+    }
+  }, [complaintIdFilter]);
 
   const merchantComplaints = useMemo(
     () => getMerchantComplaints(merchantId),
@@ -49,6 +60,9 @@ export default function MerchantCompensationList() {
   }, [compensations, merchantComplaints]);
 
   const filteredCompensations = useMemo(() => {
+    if (complaintIdFilter) {
+      return merchantCompensations.filter((c) => c.complaintId === complaintIdFilter);
+    }
     return merchantCompensations.filter((c) => {
       if (statusFilter !== 'all' && c.status !== statusFilter) return false;
       if (searchTerm) {
@@ -63,7 +77,7 @@ export default function MerchantCompensationList() {
       }
       return true;
     });
-  }, [merchantCompensations, statusFilter, searchTerm]);
+  }, [merchantCompensations, statusFilter, searchTerm, complaintIdFilter]);
 
   const totalPending = merchantCompensations
     .filter((c) => c.status === 'pending')
@@ -106,9 +120,20 @@ export default function MerchantCompensationList() {
   return (
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-800">赔付记录</h1>
-          <p className="text-neutral-500 mt-1">{merchantName} · 共 {filteredCompensations.length} 条赔付记录</p>
+        <div className="flex items-center gap-3">
+          {fromMessages && (
+            <button
+              onClick={() => navigate('/messages')}
+              className="btn btn-secondary btn-sm gap-1.5"
+            >
+              <ArrowLeft size={14} />
+              返回消息
+            </button>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-800">赔付记录</h1>
+            <p className="text-neutral-500 mt-1">{merchantName} · 共 {filteredCompensations.length} 条赔付记录</p>
+          </div>
         </div>
       </div>
 
@@ -228,7 +253,11 @@ export default function MerchantCompensationList() {
                 </tr>
               ) : (
                 filteredCompensations.map((c) => (
-                  <tr key={c.id} className="hover:bg-neutral-50 transition-colors">
+                  <tr key={c.id} className={`transition-colors ${
+                    complaintIdFilter && c.complaintId === complaintIdFilter
+                      ? 'bg-primary-50 hover:bg-primary-50'
+                      : 'hover:bg-neutral-50'
+                  }`}>
                     <td className="table-cell">
                       <span className="font-mono text-sm font-medium text-primary-600">
                         {c.id}
