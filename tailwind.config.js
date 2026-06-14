@@ -1,0 +1,143 @@
+/** @type {import('tailwindcss').Config} */
+
+export default {
+  darkMode: "class",
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    container: {
+      center: true,
+      padding: '2rem',
+      screens: {
+        'sm': '640px',
+        'md': '768px',
+        'lg': '1024px',
+        'xl': '1280px',
+        '2xl': '1440px',
+      }
+    },
+    extend: {
+      colors: {
+        primary: {
+          50: '#f0f5ff',
+          100: '#e0ebff',
+          200: '#b8d1ff',
+          300: '#85b3ff',
+          400: '#4d8bff',
+          500: '#1e3a5f',
+          600: '#1a3354',
+          700: '#152a47',
+          800: '#0f1f36',
+          900: '#0a1524',
+        },
+        warning: {
+          50: '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          300: '#fcd34d',
+          400: '#fbbf24',
+          500: '#f59e0b',
+          600: '#d97706',
+          700: '#b45309',
+          800: '#92400e',
+          900: '#78350f',
+        },
+        success: {
+          50: '#ecfdf5',
+          100: '#d1fae5',
+          200: '#a7f3d0',
+          300: '#6ee7b7',
+          400: '#34d399',
+          500: '#10b981',
+          600: '#059669',
+          700: '#047857',
+          800: '#065f46',
+          900: '#064e3b',
+        },
+        danger: {
+          50: '#fef2f2',
+          100: '#fee2e2',
+          200: '#fecaca',
+          300: '#fca5a5',
+          400: '#f87171',
+          500: '#ef4444',
+          600: '#dc2626',
+          700: '#b91c1c',
+          800: '#991b1b',
+          900: '#7f1d1d',
+        },
+        info: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+          800: '#1e40af',
+          900: '#1e3a8a',
+        },
+        neutral: {
+          50: '#f9fafb',
+          100: '#f3f4f6',
+          200: '#e5e7eb',
+          300: '#d1d5db',
+          400: '#9ca3af',
+          500: '#6b7280',
+          600: '#4b5563',
+          700: '#374151',
+          800: '#1f2937',
+          900: '#111827',
+        }
+      },
+      fontFamily: {
+        display: ['"Noto Serif SC"', 'serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.5s ease-out',
+        'fade-in-up': 'fadeInUp 0.6s ease-out',
+        'slide-in-right': 'slideInRight 0.3s ease-out',
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'bounce-in': 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+        'count-up': 'countUp 1.5s ease-out forwards',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideInRight: {
+          '0%': { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        bounceIn: {
+          '0%': { transform: 'scale(0)', opacity: '0' },
+          '50%': { transform: 'scale(1.1)' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        countUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      boxShadow: {
+        'card': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+        'card-hover': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+        'elevation-1': '0 2px 4px -1px rgba(30, 58, 95, 0.07), 0 1px 2px -1px rgba(30, 58, 95, 0.04)',
+        'elevation-2': '0 4px 6px -1px rgba(30, 58, 95, 0.1), 0 2px 4px -2px rgba(30, 58, 95, 0.06)',
+        'elevation-3': '0 10px 15px -3px rgba(30, 58, 95, 0.1), 0 4px 6px -4px rgba(30, 58, 95, 0.06)',
+      },
+      backgroundImage: {
+        'grid-pattern': "linear-gradient(rgba(30, 58, 95, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(30, 58, 95, 0.03) 1px, transparent 1px)",
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+      },
+    },
+  },
+  plugins: [],
+};

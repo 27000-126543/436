@@ -1,0 +1,682 @@
+import { useState, useMemo, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft,
+  Clock,
+  AlertTriangle,
+  Upload,
+  X,
+  Paperclip,
+  FileText,
+  MessageSquare,
+  Shield,
+  User,
+  Package,
+  Send,
+  Check,
+} from 'lucide-react';
+import { useComplaintStore } from '@/store/complaintStore';
+import { useAuthStore } from '@/store/authStore';
+import {
+  formatCurrency,
+  formatDate,
+  formatRelativeTime,
+  getTimeRemaining,
+} from '@/utils/format';
+import {
+  COMPLAINT_TYPE_LABELS,
+  COMPLAINT_STATUS_LABELS,
+  PRIORITY_LABELS,
+  type Evidence,
+} from '@/types';
+
+export default function MerchantComplaintDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { getComplaintById, submitMerchantAppeal } = useComplaintStore();
+  const { currentUser } = useAuthStore();
+
+  const complaint = useMemo(() => (id ? getComplaintById(id) : undefined), [id, getComplaintById]);
+
+  const [appealContent, setAppealContent] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<Evidence[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (!complaint) {
+    return (
+      <div className="p-8">
+        <button onClick={() => navigate('/complaints')} className="btn btn-ghost mb-4">
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          返回列表
+        </button>
+        <div className="card p-16 text-center text-neutral-400">
+          <FileText className="w-16 h-16 mx-auto mb-4 opacity-40" />
+          <p className="text-lg">投诉不存在或已被删除</p>
+        </div>
+      </div>
+    );
+  }
+
+  const isTimeout = complaint.merchantTimeout;
+  const canSubmit = !complaint.merchantAppeal && !isTimeout;
+  const deadlineInfo = complaint.merchantResponseDeadline
+    ? getTimeRemaining(complaint.merchantResponseDeadline)
+    : null;
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const newFiles: Evidence[] = Array.from(files).map((f, idx) => ({
+      id: `new_${Date.now()}_${idx}`,
+      type: f.type.startsWith('image/') ? 'image' : 'document',
+      url: URL.createObjectURL(f),
+      name: f.name,
+      uploadTime: new Date().toISOString(),
+      uploader: 'merchant',
+    }));
+    setUploadedFiles((prev) => [...prev, ...newFiles]);
+  };
+
+  const removeFile = (fileId: string) => {
+    setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));
+  };
+
+  const handleSubmit = async () => {
+    if (!appealContent.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    await new Promise((r) => setTimeout(r, 1000));
+    submitMerchantAppeal(complaint.id, {
+      content: appealContent,
+      evidence: uploadedFiles,
+    });
+    setIsSubmitting(false);
+  };
+
+  const getStatusBadgeClass = () => {
+    switch (complaint.status) {
+      case 'pending':
+      case 'arbitrating':
+        return 'badge-warning';
+      case 'mediating':
+      case 'assigned':
+        return 'badge-primary';
+      case 'closed':
+      case 'mediated':
+        return 'badge-neutral';
+      case 'awarded':
+        return 'badge-success';
+      default:
+        return 'badge-danger';
+    }
+  };
+
+  return (
+    <div className="p-8 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/complaints')} className="btn btn-ghost !p-2">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-neutral-800">投诉详情</h1>
+              <span className="font-mono text-sm text-neutral-500 bg-neutral-100 px-2 py-1 rounded">
+                {complaint.id}
+              </span>
+              <span className={`badge ${getStatusBadgeClass()}`}>
+                {COMPLAINT_STATUS_LABELS[complaint.status]}
+              </span>
+            </div>
+            <p className="text-neutral-500 mt-1">
+              {complaint.orderInfo.merchantName} · 提交于 {formatDate(complaint.createdAt)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {isTimeout && (
+        <div className="bg-danger-50 border border-danger-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertTriangle className="w-6 h-6 text-danger-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-danger-800">已自动默认支持消费者</h3>
+            <p className="text-danger-700 text-sm mt-1">
+              由于您未能在规定时间内作出回应，系统已自动默认支持消费者诉求。如对此结果有异议，可在仲裁阶段提交相关证据进行申诉。
+            </p>
+          </div>
+        </div>
+      )}
+
+      {deadlineInfo && !deadlineInfo.isExpired && !complaint.merchantAppeal && (
+        <div className={`border rounded-lg p-4 flex items-start gap-3 ${
+          deadlineInfo.days * 24 + deadlineInfo.hours < 6
+            ? 'bg-warning-50 border-warning-200'
+            : 'bg-info-50 border-info-200'
+        }`}>
+          <Clock className={`w-6 h-6 flex-shrink-0 mt-0.5 ${
+            deadlineInfo.days * 24 + deadlineInfo.hours < 6
+              ? 'text-warning-500'
+              : 'text-info-500'
+          }`} />
+          <div>
+            <h3 className={`font-semibold ${
+              deadlineInfo.days * 24 + deadlineInfo.hours < 6
+                ? 'text-warning-800'
+                : 'text-info-800'
+            }`}>
+              响应截止时间倒计时
+            </h3>
+            <p className={`text-sm mt-1 ${
+              deadlineInfo.days * 24 + deadlineInfo.hours < 6
+                ? 'text-warning-700'
+                : 'text-info-700'
+            }`}>
+              请在 {deadlineInfo.days > 0 && `${deadlineInfo.days}天`}
+              {deadlineInfo.hours}时{deadlineInfo.minutes}分 内提交申诉，超时将自动默认支持消费者。
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="space-y-6 xl:col-span-2">
+          <div className="card overflow-hidden">
+            <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50">
+              <h3 className="font-semibold text-neutral-800 flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary-500" />
+                订单信息
+              </h3>
+            </div>
+            <div className="p-5">
+              <div className="flex items-start gap-4">
+                <img
+                  src={complaint.orderInfo.productImage}
+                  alt={complaint.orderInfo.productName}
+                  className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-neutral-800">{complaint.orderInfo.productName}</h4>
+                  <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+                    <div>
+                      <span className="text-neutral-500">订单号：</span>
+                      <span className="font-mono text-neutral-700">{complaint.orderId}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500">下单时间：</span>
+                      <span className="text-neutral-700">
+                        {formatDate(complaint.orderInfo.orderTime, 'date')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500">订单金额：</span>
+                      <span className="font-semibold text-neutral-800">
+                        {formatCurrency(complaint.orderInfo.amount)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500">索赔金额：</span>
+                      <span className="font-semibold text-danger-600">
+                        {formatCurrency(complaint.amount)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card overflow-hidden">
+            <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50 flex items-center justify-between">
+              <h3 className="font-semibold text-neutral-800 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-primary-500" />
+                投诉详情
+              </h3>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`badge ${
+                    complaint.priority === 'high'
+                      ? 'badge-danger'
+                      : complaint.priority === 'medium'
+                      ? 'badge-warning'
+                      : 'badge-neutral'
+                  }`}
+                >
+                  {PRIORITY_LABELS[complaint.priority]}
+                </span>
+                <span className="badge badge-info">{COMPLAINT_TYPE_LABELS[complaint.type]}</span>
+              </div>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
+                  <User className="w-5 h-5 text-neutral-500" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-neutral-800">{complaint.consumerName}</span>
+                    <span className="text-xs text-neutral-400">消费者</span>
+                  </div>
+                  <p className="text-xs text-neutral-500">
+                    {formatRelativeTime(complaint.createdAt)} · 发起投诉
+                  </p>
+                </div>
+              </div>
+              <div className="bg-neutral-50 rounded-lg p-4 ml-13">
+                <h4 className="font-medium text-neutral-800 mb-2">{complaint.title}</h4>
+                <p className="text-sm text-neutral-600 leading-relaxed whitespace-pre-wrap">
+                  {complaint.description}
+                </p>
+              </div>
+              {complaint.evidence.length > 0 && (
+                <div className="ml-13">
+                  <p className="text-sm text-neutral-500 mb-2 flex items-center gap-1.5">
+                    <Paperclip className="w-4 h-4" />
+                    消费者上传的证据 ({complaint.evidence.length})
+                  </p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {complaint.evidence.map((evi) => (
+                      <div
+                        key={evi.id}
+                        className="relative group aspect-square rounded-lg overflow-hidden border border-neutral-200 bg-neutral-50"
+                      >
+                        <img
+                          src={evi.url}
+                          alt={evi.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                          <FileText className="w-6 h-6 text-white" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {complaint.mediationRecord && (
+            <div className="card overflow-hidden">
+              <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50">
+                <h3 className="font-semibold text-neutral-800 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-primary-500" />
+                  调解记录
+                  <span className="text-sm font-normal text-neutral-500 ml-2">
+                    {complaint.serviceName} 处理
+                  </span>
+                </h3>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="bg-primary-50 border border-primary-100 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-primary-700">调解方案</span>
+                    <span className="text-xs text-primary-500">
+                      建议赔付 {formatCurrency(complaint.mediationRecord.proposedAmount)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-neutral-700">{complaint.mediationRecord.solution}</p>
+                </div>
+                <p className="text-sm text-neutral-600">
+                  <span className="text-neutral-500">调解员说明：</span>
+                  {complaint.mediationRecord.content}
+                </p>
+                {complaint.mediationRecord.communicationRecords.length > 0 && (
+                  <div className="space-y-3 pt-3 border-t border-neutral-100">
+                    <p className="text-sm font-medium text-neutral-700">沟通记录</p>
+                    {complaint.mediationRecord.communicationRecords.map((record) => (
+                      <div
+                        key={record.id}
+                        className={`flex gap-3 ${
+                          record.sender === 'merchant' ? 'flex-row-reverse' : ''
+                        }`}
+                      >
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            record.sender === 'consumer'
+                              ? 'bg-info-100'
+                              : record.sender === 'merchant'
+                              ? 'bg-success-100'
+                              : 'bg-primary-100'
+                          }`}
+                        >
+                          <User
+                            className={`w-4 h-4 ${
+                              record.sender === 'consumer'
+                                ? 'text-info-600'
+                                : record.sender === 'merchant'
+                                ? 'text-success-600'
+                                : 'text-primary-600'
+                            }`}
+                          />
+                        </div>
+                        <div
+                          className={`max-w-md ${
+                            record.sender === 'merchant' ? 'text-right' : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-neutral-600">
+                              {record.senderName}
+                            </span>
+                            <span className="text-xs text-neutral-400">
+                              {formatDate(record.createdAt, 'time')}
+                            </span>
+                          </div>
+                          <div
+                            className={`inline-block px-3 py-2 rounded-lg text-sm ${
+                              record.sender === 'merchant'
+                                ? 'bg-success-50 text-success-800'
+                                : record.sender === 'service'
+                                ? 'bg-primary-50 text-primary-800'
+                                : 'bg-neutral-100 text-neutral-800'
+                            }`}
+                          >
+                            {record.content}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {complaint.merchantAppeal && (
+            <div className="card overflow-hidden">
+              <div className="px-5 py-4 border-b border-neutral-200 bg-success-50/50">
+                <h3 className="font-semibold text-neutral-800 flex items-center gap-2">
+                  <Check className="w-5 h-5 text-success-500" />
+                  已提交的申诉
+                  <span className="text-xs text-neutral-500 font-normal ml-2">
+                    {formatDate(complaint.merchantAppeal.submittedAt)}
+                  </span>
+                </h3>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="bg-neutral-50 rounded-lg p-4">
+                  <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">
+                    {complaint.merchantAppeal.content}
+                  </p>
+                </div>
+                {complaint.merchantAppeal.evidence.length > 0 && (
+                  <div>
+                    <p className="text-sm text-neutral-500 mb-2 flex items-center gap-1.5">
+                      <Paperclip className="w-4 h-4" />
+                      申诉证据 ({complaint.merchantAppeal.evidence.length})
+                    </p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {complaint.merchantAppeal.evidence.map((evi) => (
+                        <div
+                          key={evi.id}
+                          className="relative aspect-square rounded-lg overflow-hidden border border-neutral-200"
+                        >
+                          <img
+                            src={evi.url}
+                            alt={evi.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {canSubmit && (
+            <div className="card overflow-hidden">
+              <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50">
+                <h3 className="font-semibold text-neutral-800 flex items-center gap-2">
+                  <Send className="w-5 h-5 text-primary-500" />
+                  在线申诉
+                </h3>
+              </div>
+              <div className="p-5 space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    申诉内容 <span className="text-danger-500">*</span>
+                  </label>
+                  <textarea
+                    value={appealContent}
+                    onChange={(e) => setAppealContent(e.target.value)}
+                    placeholder="请详细说明您的申诉理由，包括事实情况、相关依据等..."
+                    rows={6}
+                    className="input-textarea"
+                  />
+                  <p className="text-xs text-neutral-400 mt-2">
+                    已输入 {appealContent.length} 字（建议不少于50字）
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    证据上传
+                  </label>
+                  <div className="border-2 border-dashed border-neutral-200 rounded-lg p-8 text-center hover:border-primary-300 hover:bg-primary-50/30 transition-colors">
+                    <input
+                      id="evidence-upload"
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="evidence-upload"
+                      className="cursor-pointer inline-flex flex-col items-center"
+                    >
+                      <Upload className="w-10 h-10 text-neutral-400 mb-2" />
+                      <span className="text-sm font-medium text-neutral-700">
+                        点击或拖拽文件到此处上传
+                      </span>
+                      <span className="text-xs text-neutral-400 mt-1">
+                        支持 JPG、PNG、PDF、DOC 等格式，单个文件不超过 10MB
+                      </span>
+                    </label>
+                  </div>
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {uploadedFiles.map((file) => (
+                        <div
+                          key={file.id}
+                          className="flex items-center justify-between bg-neutral-50 rounded-lg px-3 py-2"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <Paperclip className="w-4 h-4 text-neutral-400 flex-shrink-0" />
+                            <span className="text-sm text-neutral-700 truncate">{file.name}</span>
+                          </div>
+                          <button
+                            onClick={() => removeFile(file.id)}
+                            className="p-1 hover:bg-neutral-200 rounded transition-colors"
+                          >
+                            <X className="w-4 h-4 text-neutral-500" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-100">
+                  <button
+                    onClick={() => {
+                      setAppealContent('');
+                      setUploadedFiles([]);
+                    }}
+                    className="btn btn-secondary"
+                  >
+                    重置
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={!appealContent.trim() || isSubmitting}
+                    className="btn btn-primary"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        提交中...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        提交申诉
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <div className="card overflow-hidden">
+            <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50">
+              <h3 className="font-semibold text-neutral-800">处理进度</h3>
+            </div>
+            <div className="p-5">
+              <div className="relative pl-6">
+                <div className="absolute left-1.5 top-1 bottom-1 w-0.5 bg-neutral-200" />
+                {[
+                  {
+                    title: '投诉提交',
+                    time: complaint.createdAt,
+                    status: 'completed',
+                    desc: '消费者已提交投诉',
+                  },
+                  {
+                    title: '分派处理',
+                    time: complaint.assignedAt,
+                    status: complaint.assignedAt ? 'completed' : 'pending',
+                    desc: complaint.serviceName
+                      ? `由 ${complaint.serviceName} 接手`
+                      : '等待分派',
+                  },
+                  {
+                    title: '商家申诉',
+                    time: complaint.merchantAppeal?.submittedAt,
+                    status: complaint.merchantAppeal
+                      ? 'completed'
+                      : complaint.status === 'assigned' || complaint.status === 'mediating'
+                      ? 'active'
+                      : 'pending',
+                    desc: complaint.merchantAppeal ? '已提交申诉' : isTimeout ? '已超时' : '等待商家回应',
+                  },
+                  {
+                    title: '调解/仲裁',
+                    time: complaint.mediationRecord?.createdAt || complaint.arbitrationAssignedAt,
+                    status:
+                      complaint.mediationRecord || complaint.arbitratorName
+                        ? 'completed'
+                        : 'pending',
+                    desc: complaint.arbitratorName
+                      ? `仲裁员：${complaint.arbitratorName}`
+                      : complaint.serviceName
+                      ? '调解进行中'
+                      : '尚未开始',
+                  },
+                  {
+                    title: '处理完成',
+                    time: complaint.award?.createdAt,
+                    status:
+                      complaint.status === 'closed' || complaint.status === 'awarded'
+                        ? 'completed'
+                        : 'pending',
+                    desc:
+                      complaint.status === 'closed'
+                        ? '已结案'
+                        : complaint.status === 'awarded'
+                        ? '已裁决'
+                        : '待处理',
+                  },
+                ].map((step, idx) => (
+                  <div key={idx} className="relative pb-6 last:pb-0">
+                    <div
+                      className={`absolute -left-6 top-0.5 w-4 h-4 rounded-full border-2 border-white ${
+                        step.status === 'completed'
+                          ? 'bg-success-500'
+                          : step.status === 'active'
+                          ? 'bg-primary-500 animate-pulse'
+                          : 'bg-neutral-300'
+                      }`}
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4
+                          className={`font-medium text-sm ${
+                            step.status === 'pending' ? 'text-neutral-400' : 'text-neutral-800'
+                          }`}
+                        >
+                          {step.title}
+                        </h4>
+                      </div>
+                      <p
+                        className={`text-xs mt-0.5 ${
+                          step.status === 'pending' ? 'text-neutral-400' : 'text-neutral-500'
+                        }`}
+                      >
+                        {step.desc}
+                      </p>
+                      {step.time && (
+                        <p className="text-xs text-neutral-400 mt-1">
+                          {formatDate(step.time, 'date')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="card overflow-hidden">
+            <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50">
+              <h3 className="font-semibold text-neutral-800">处理人员</h3>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-info-100 flex items-center justify-center">
+                  <User className="w-5 h-5 text-info-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-neutral-800">{complaint.consumerName}</p>
+                  <p className="text-xs text-neutral-500">投诉方（消费者）</p>
+                </div>
+              </div>
+              {complaint.serviceName && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-primary-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-neutral-800">{complaint.serviceName}</p>
+                    <p className="text-xs text-neutral-500">客服调解员</p>
+                  </div>
+                </div>
+              )}
+              {complaint.arbitratorName && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-warning-100 flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-warning-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-neutral-800">
+                      {complaint.arbitratorName}
+                    </p>
+                    <p className="text-xs text-neutral-500">仲裁员</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
