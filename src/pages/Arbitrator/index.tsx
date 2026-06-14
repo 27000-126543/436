@@ -44,11 +44,15 @@ interface StatCardProps {
   subValue?: string;
   subColor?: string;
   trend?: { value: number; up: boolean };
+  onClick?: () => void;
 }
 
-function StatCard({ icon, iconBg, label, value, subValue, subColor, trend }: StatCardProps) {
+function StatCard({ icon, iconBg, label, value, subValue, subColor, trend, onClick }: StatCardProps) {
   return (
-    <div className="card card-hover p-5">
+    <div
+      className={cn('card card-hover p-5', onClick && 'cursor-pointer')}
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-neutral-500 font-medium">{label}</p>
@@ -111,7 +115,7 @@ export default function ArbitratorDashboard() {
   }, [myCases]);
 
   const todoReminders = useMemo(() => {
-    const reminders: Array<{ id: string; type: string; title: string; time: string; urgent: boolean; icon: React.ReactNode }> = [];
+    const reminders: Array<{ id: string; type: string; title: string; time: string; urgent: boolean; icon: React.ReactNode; parentComplaintId?: string; caseId?: string }> = [];
     urgentCases.forEach(c => {
       const remaining = getTimeRemaining(c.merchantResponseDeadline!);
       reminders.push({
@@ -121,6 +125,7 @@ export default function ArbitratorDashboard() {
         time: `剩余 ${remaining.hours}小时${remaining.minutes}分`,
         urgent: true,
         icon: <Timer size={16} className="text-danger-500" />,
+        caseId: c.id,
       });
     });
     reviewCases.forEach(c => {
@@ -131,6 +136,8 @@ export default function ArbitratorDashboard() {
         time: formatRelativeTime(c.arbitrationAssignedAt || c.createdAt),
         urgent: false,
         icon: <BadgeCheck size={16} className="text-warning-500" />,
+        parentComplaintId: c.parentComplaintId,
+        caseId: c.id,
       });
     });
     if (currentUser) {
@@ -151,6 +158,8 @@ export default function ArbitratorDashboard() {
     return reminders.slice(0, 6);
   }, [urgentCases, reviewCases, messages, currentUser]);
 
+  const totalAwarded = useMemo(() => myCases.filter(c => c.award).length, [myCases]);
+
   const stats: StatCardProps[] = [
     {
       icon: <Scale size={22} className="text-primary-600" />,
@@ -160,14 +169,16 @@ export default function ArbitratorDashboard() {
       subValue: urgentCases.length > 0 ? `${urgentCases.length} 件紧急` : undefined,
       subColor: urgentCases.length > 0 ? 'text-danger-600 font-medium' : undefined,
       trend: { value: 12, up: true },
+      onClick: () => navigate('/arbitrator/cases'),
     },
     {
       icon: <FileCheck2 size={22} className="text-success-600" />,
       iconBg: 'bg-success-100',
       label: '本月裁决',
       value: awardedThisMonth.length,
-      subValue: `累计 ${myCases.filter(c => c.award).length} 件`,
+      subValue: `累计 ${totalAwarded} 件`,
       trend: { value: 8, up: true },
+      onClick: () => navigate('/arbitrator/cases/CP20250612001'),
     },
     {
       icon: <Target size={22} className="text-warning-600" />,
@@ -179,13 +190,14 @@ export default function ArbitratorDashboard() {
       trend: { value: 2, up: true },
     },
     {
-      icon: <Clock size={22} className="text-info-600" />,
+      icon: <Scale size={22} className="text-info-600" />,
       iconBg: 'bg-info-100',
-      label: '平均裁决时长',
-      value: '42h',
-      subValue: '较平台均值快 6h',
-      subColor: 'text-success-600 font-medium',
-      trend: { value: 5, up: false },
+      label: '裁决历史',
+      value: totalAwarded,
+      subValue: '查看全部裁决案件',
+      subColor: 'text-primary-600 font-medium',
+      trend: { value: 5, up: true },
+      onClick: () => navigate('/arbitrator/cases'),
     },
   ];
 
@@ -309,9 +321,9 @@ export default function ArbitratorDashboard() {
                   key={item.id}
                   onClick={() => {
                     if (item.id.startsWith('case-')) {
-                      navigate(`/arbitrator/case/${item.id.replace('case-', '')}`);
+                      navigate(`/arbitrator/cases/${item.caseId}`);
                     } else if (item.id.startsWith('review-')) {
-                      navigate(`/arbitrator/review`);
+                      navigate(`/arbitrator/cases/${item.parentComplaintId || item.caseId}`);
                     } else {
                       navigate('/messages');
                     }
@@ -419,7 +431,7 @@ export default function ArbitratorDashboard() {
                   </td>
                   <td className="table-cell text-right">
                     <button
-                      onClick={() => navigate(`/arbitrator/case/${c.id}`)}
+                      onClick={() => navigate(`/arbitrator/cases/${c.id}`)}
                       className="text-sm text-primary-600 hover:text-primary-700 font-medium"
                     >
                       {c.award ? '查看裁决' : '立即裁决'}

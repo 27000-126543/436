@@ -343,7 +343,7 @@ export default function MerchantCreditCenter() {
                       <td className="table-cell">
                         {record.complaintId ? (
                           <button
-                            onClick={() => navigate(`/complaints/${record.complaintId}`)}
+                            onClick={() => navigate(`/merchant/complaints/${record.complaintId}`)}
                             className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-mono"
                           >
                             {record.complaintId}

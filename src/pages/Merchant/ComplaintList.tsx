@@ -236,7 +236,7 @@ export default function MerchantComplaintList() {
                 filteredComplaints.map((c) => (
                   <tr
                     key={c.id}
-                    onClick={() => navigate(`/complaints/${c.id}`)}
+                    onClick={() => navigate(`/merchant/complaints/${c.id}`)}
                     className={`cursor-pointer hover:bg-neutral-50 transition-colors ${getRowClass(c)}`}
                   >
                     <td className="table-cell">
@@ -303,7 +303,7 @@ export default function MerchantComplaintList() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/complaints/${c.id}`);
+                          navigate(`/merchant/complaints/${c.id}`);
                         }}
                         className="btn btn-ghost !px-2 !py-1"
                       >

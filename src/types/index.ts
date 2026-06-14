@@ -29,7 +29,8 @@ export interface Evidence {
   url: string;
   name: string;
   uploadTime: string;
-  uploader: 'consumer' | 'merchant';
+  uploader: 'consumer' | 'merchant' | 'service';
+  uploaderName?: string;
 }
 
 export interface CommunicationRecord {
@@ -108,6 +109,7 @@ export interface Complaint {
   title: string;
   description: string;
   evidence: Evidence[];
+  serviceEvidence?: Evidence[];
   amount: number;
   priority: Priority;
   status: ComplaintStatus;

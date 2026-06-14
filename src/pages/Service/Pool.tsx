@@ -87,11 +87,13 @@ export default function ServicePool() {
         return next;
       });
       setIsAssigning(false);
+      navigate(`/service/complaints/${id}`);
     }, 500);
   };
 
   const handleBatchAssignToMe = () => {
     if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
     setIsAssigning(true);
     setTimeout(() => {
       selectedIds.forEach((id) => {
@@ -99,6 +101,11 @@ export default function ServicePool() {
       });
       setSelectedIds(new Set());
       setIsAssigning(false);
+      if (ids.length === 1) {
+        navigate(`/service/complaints/${ids[0]}`);
+      } else {
+        navigate('/service/complaints');
+      }
     }, 800);
   };
 
@@ -295,7 +302,7 @@ export default function ServicePool() {
                 filteredAssignments.map((c) => (
                   <tr
                     key={c.id}
-                    onClick={() => navigate(`/complaints/${c.id}`)}
+                    onClick={() => navigate(`/service/complaints/${c.id}`)}
                     className={`cursor-pointer hover:bg-neutral-50 transition-colors ${getRowClass(
                       c.priority
                     )}`}
@@ -386,7 +393,7 @@ export default function ServicePool() {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <button
-                          onClick={() => navigate(`/complaints/${c.id}`)}
+                          onClick={() => navigate(`/service/complaints/${c.id}`)}
                           className="btn btn-ghost !px-3 !py-1.5 text-xs text-neutral-600 hover:text-primary-600"
                         >
                           查看

@@ -400,9 +400,9 @@ export default function ReviewList() {
                       <span>本案为终裁，裁决结果具有最终法律效力</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      {originalCase && (
+                      {c.parentComplaintId && (
                         <button
-                          onClick={() => navigate(`/arbitrator/case/${originalCase.id}`)}
+                          onClick={() => navigate(`/arbitrator/cases/${c.parentComplaintId || c.id}`)}
                           className="btn btn-secondary gap-1.5 text-xs"
                         >
                           <FileText size={14} />
@@ -410,7 +410,7 @@ export default function ReviewList() {
                         </button>
                       )}
                       <button
-                        onClick={() => navigate(`/arbitrator/case/${c.id}`)}
+                        onClick={() => navigate(`/arbitrator/cases/${c.id}`)}
                         className={cn('btn gap-1.5', c.award ? 'btn-secondary' : 'btn-primary bg-gradient-to-r from-purple-600 to-indigo-600 border-transparent hover:from-purple-700 hover:to-indigo-700')}
                       >
                         <Shield size={14} />

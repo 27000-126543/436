@@ -60,7 +60,7 @@ export default function MerchantDashboard() {
       icon: FileText,
       color: 'text-info-600',
       bg: 'bg-info-50',
-      path: '/complaints',
+      path: '/merchant/complaints',
       trend: pendingComplaints.length > 0 ? '需及时处理' : '暂无待办',
     },
     {
@@ -69,7 +69,7 @@ export default function MerchantDashboard() {
       icon: ShieldAlert,
       color: 'text-warning-600',
       bg: 'bg-warning-50',
-      path: '/complaints',
+      path: '/merchant/complaints/CP20250612001',
       trend: '较上月持平',
     },
     {
@@ -78,7 +78,7 @@ export default function MerchantDashboard() {
       icon: TrendingDown,
       color: 'text-danger-600',
       bg: 'bg-danger-50',
-      path: '/credit',
+      path: '/merchant/credit',
       trend: '注意信用风险',
     },
     {
@@ -87,7 +87,7 @@ export default function MerchantDashboard() {
       icon: Wallet,
       color: 'text-primary-600',
       bg: 'bg-primary-50',
-      path: '/compensation',
+      path: '/merchant/compensations',
       trend: '赔付记录可查',
     },
   ];
@@ -191,7 +191,7 @@ export default function MerchantDashboard() {
                 </div>
               </div>
               <button
-                onClick={() => navigate('/credit')}
+                onClick={() => navigate('/merchant/credit')}
                 className="w-full mt-2 inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-white/15 hover:bg-white/25 rounded-lg text-sm font-medium text-white transition-colors"
               >
                 查看详情 <ArrowUpRight className="w-4 h-4" />
@@ -234,7 +234,7 @@ export default function MerchantDashboard() {
               <h3 className="font-semibold text-neutral-800">最近信用变动</h3>
             </div>
             <button
-              onClick={() => navigate('/credit')}
+              onClick={() => navigate('/merchant/credit')}
               className="text-sm text-primary-600 hover:text-primary-700 font-medium"
             >
               查看全部
@@ -296,7 +296,7 @@ export default function MerchantDashboard() {
               )}
             </div>
             <button
-              onClick={() => navigate('/complaints')}
+              onClick={() => navigate('/merchant/complaints')}
               className="text-sm text-primary-600 hover:text-primary-700 font-medium"
             >
               查看全部
@@ -312,7 +312,7 @@ export default function MerchantDashboard() {
               {pendingComplaints.slice(0, 5).map((c) => (
                 <div
                   key={c.id}
-                  onClick={() => navigate(`/complaints/${c.id}`)}
+                  onClick={() => navigate(`/merchant/complaints/${c.id}`)}
                   className="px-5 py-4 cursor-pointer hover:bg-neutral-50 transition-colors"
                 >
                   <div className="flex items-start gap-3">

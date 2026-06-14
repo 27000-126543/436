@@ -29,6 +29,8 @@ import {
   Eye,
   ChevronDown,
   ChevronUp,
+  Paperclip,
+  Headphones,
 } from 'lucide-react';
 import { useComplaintStore } from '@/store/complaintStore';
 import { useAuthStore } from '@/store/authStore';
@@ -65,6 +67,58 @@ export default function ComplaintDetail() {
     () => (id ? getComplaintById(id) : undefined),
     [id, getComplaintById]
   );
+
+  // 证据类型图标映射
+  const getEvidenceIcon = (type: Evidence['type']) => {
+    switch (type) {
+      case 'image': return <Image className="w-4 h-4" />;
+      case 'chat': return <MessageCircle className="w-4 h-4" />;
+      case 'video': return <Video className="w-4 h-4" />;
+      case 'document': return <File className="w-4 h-4" />;
+    }
+  };
+
+  // 证据网格渲染
+  const renderEvidenceGrid = (evidenceList: Evidence[]) => {
+    if (evidenceList.length === 0) {
+      return (
+        <div className="py-5 text-center text-neutral-400 text-sm">
+          暂无上传的证据材料
+        </div>
+      );
+    }
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {evidenceList.map((ev) => (
+          <div
+            key={ev.id}
+            className="group relative rounded-lg border border-neutral-200 overflow-hidden hover:border-primary-400 hover:shadow-sm transition-all"
+          >
+            <div className="aspect-video bg-neutral-100 flex items-center justify-center">
+              {ev.type === 'image' || ev.type === 'chat' ? (
+                <img src={ev.url} alt={ev.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-neutral-400">
+                  {ev.type === 'video' ? <Video className="w-10 h-10" /> : <File className="w-10 h-10" />}
+                  <span className="text-xs">{ev.type.toUpperCase()}</span>
+                </div>
+              )}
+            </div>
+            <div className="p-2 bg-white">
+              <div className="flex items-center gap-1 text-xs text-neutral-500 mb-1">
+                {getEvidenceIcon(ev.type)}
+                <span className="truncate">{ev.name}</span>
+              </div>
+              {ev.uploaderName && (
+                <p className="text-[11px] text-neutral-400 truncate">{ev.uploaderName}</p>
+              )}
+              <p className="text-[10px] text-neutral-300 mt-1">{formatDate(ev.uploadTime, 'full')}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   const timeline = useMemo<TimelineStep[]>(() => {
     if (!complaint) return [];
@@ -210,7 +264,7 @@ export default function ComplaintDetail() {
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/consumer/complaints')}
           className="btn btn-ghost !p-2"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -329,7 +383,7 @@ export default function ComplaintDetail() {
               <FileText className="w-5 h-5 text-primary-600" />
               投诉内容
             </h2>
-            <div className="bg-neutral-50 rounded-xl p-4 mb-4">
+            <div className="bg-neutral-50 rounded-xl p-4">
               <p className="text-sm text-neutral-500 mb-1">投诉标题</p>
               <p className="font-medium text-neutral-800 mb-4">
                 {complaint.title}
@@ -339,99 +393,121 @@ export default function ComplaintDetail() {
                 {complaint.description}
               </p>
             </div>
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-medium text-neutral-700 flex items-center gap-2">
-                  <Upload className="w-4 h-4" />
-                  证据材料
-                  <span className="badge badge-neutral">
-                    {complaint.evidence.length} 个
-                  </span>
-                </h3>
-                {canAddEvidence && (
-                  <button
-                    onClick={() => setShowAddEvidence(!showAddEvidence)}
-                    className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
-                  >
-                    <Plus className="w-4 h-4" />
-                    补充证据
-                  </button>
-                )}
-              </div>
+          </div>
 
-              {showAddEvidence && (
-                <div className="mb-4 p-4 bg-primary-50/50 rounded-xl border border-primary-100">
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Paperclip className="w-5 h-5 text-primary-500" />
+                <h3 className="font-semibold text-neutral-800">证据材料</h3>
+              </div>
+              {canAddEvidence && (
+                <button
+                  onClick={() => setShowAddEvidence(!showAddEvidence)}
+                  className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                >
+                  <Plus className="w-4 h-4" />
+                  补充证据
+                </button>
+              )}
+            </div>
+
+            {showAddEvidence && (
+              <div className="mb-6 p-4 bg-primary-50/50 rounded-xl border border-primary-100">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-sm font-medium text-neutral-700">
+                    选择证据类型：
+                  </span>
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      {
+                        value: 'image' as const,
+                        label: '图片',
+                        icon: Image,
+                      },
+                      {
+                        value: 'chat' as const,
+                        label: '聊天记录',
+                        icon: MessageCircle,
+                      },
+                      {
+                        value: 'video' as const,
+                        label: '视频',
+                        icon: Video,
+                      },
+                      {
+                        value: 'document' as const,
+                        label: '文档',
+                        icon: File,
+                      },
+                    ].map(t => (
+                      <button
+                        key={t.value}
+                        onClick={() => setNewEvidenceType(t.value)}
+                        className={cn(
+                          'btn !py-1 !px-2 text-xs gap-1',
+                          newEvidenceType === t.value
+                            ? 'btn-primary'
+                            : 'btn-secondary'
+                        )}
+                      >
+                        <t.icon className="w-3 h-3" />
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddEvidence}
+                    className="btn btn-primary text-sm gap-1"
+                  >
+                    <Upload className="w-4 h-4" />
+                    模拟上传
+                  </button>
+                  <button
+                    onClick={() => setShowAddEvidence(false)}
+                    className="btn btn-secondary text-sm"
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-5">
+              <div className="rounded-lg border-l-4 border-primary-500 bg-primary-50/30 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center"><User className="w-4 h-4 text-primary-600" /></div>
+                  <div>
+                    <p className="text-sm font-semibold text-primary-700">我提交的证据</p>
+                    <p className="text-xs text-neutral-500">共 {complaint.evidence.length} 份</p>
+                  </div>
+                </div>
+                {renderEvidenceGrid(complaint.evidence)}
+              </div>
+              {complaint.merchantAppeal && (
+                <div className="rounded-lg border-l-4 border-warning-500 bg-warning-50/30 p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-sm font-medium text-neutral-700">
-                      选择证据类型：
-                    </span>
-                    <div className="flex gap-2 flex-wrap">
-                      {[
-                        {
-                          value: 'image' as const,
-                          label: '图片',
-                          icon: Image,
-                        },
-                        {
-                          value: 'chat' as const,
-                          label: '聊天记录',
-                          icon: MessageCircle,
-                        },
-                        {
-                          value: 'video' as const,
-                          label: '视频',
-                          icon: Video,
-                        },
-                        {
-                          value: 'document' as const,
-                          label: '文档',
-                          icon: File,
-                        },
-                      ].map(t => (
-                        <button
-                          key={t.value}
-                          onClick={() => setNewEvidenceType(t.value)}
-                          className={cn(
-                            'btn !py-1 !px-2 text-xs gap-1',
-                            newEvidenceType === t.value
-                              ? 'btn-primary'
-                              : 'btn-secondary'
-                          )}
-                        >
-                          <t.icon className="w-3 h-3" />
-                          {t.label}
-                        </button>
-                      ))}
+                    <div className="w-8 h-8 rounded-full bg-warning-100 flex items-center justify-center"><Store className="w-4 h-4 text-warning-600" /></div>
+                    <div>
+                      <p className="text-sm font-semibold text-warning-700">商家申诉证据</p>
+                      <p className="text-xs text-neutral-500">{complaint.orderInfo.merchantName} · 共 {complaint.merchantAppeal.evidence.length} 份</p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleAddEvidence}
-                      className="btn btn-primary text-sm gap-1"
-                    >
-                      <Upload className="w-4 h-4" />
-                      模拟上传
-                    </button>
-                    <button
-                      onClick={() => setShowAddEvidence(false)}
-                      className="btn btn-secondary text-sm"
-                    >
-                      取消
-                    </button>
-                  </div>
+                  {renderEvidenceGrid(complaint.merchantAppeal.evidence)}
                 </div>
               )}
-
-              {complaint.evidence.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {complaint.evidence.map(evi => (
-                    <EvidenceCard key={evi.id} evidence={evi} />
-                  ))}
-                </div>
-              ) : (
-                <div className="p-8 text-center bg-neutral-50 rounded-xl">
-                  <Upload className="w-10 h-10 text-neutral-300 mx-auto mb-2" />
-                  <p className="text-sm text-neutral-500">暂无证据材料</p>
+              {complaint.serviceEvidence && complaint.serviceEvidence.length > 0 && (
+                <div className="rounded-lg border-l-4 border-purple-500 bg-purple-50/30 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center"><Headphones className="w-4 h-4 text-purple-600" /></div>
+                    <div>
+                      <p className="text-sm font-semibold text-purple-700">客服补充调查证据</p>
+                      <p className="text-xs text-neutral-500">平台客服独立调查 · 共 {complaint.serviceEvidence.length} 份</p>
+                    </div>
+                  </div>
+                  {renderEvidenceGrid(complaint.serviceEvidence)}
                 </div>
               )}
             </div>
@@ -534,25 +610,9 @@ export default function ComplaintDetail() {
                     {formatDate(complaint.merchantAppeal.submittedAt)}
                   </span>
                 </div>
-                <p className="text-neutral-700 leading-relaxed mb-4">
+                <p className="text-neutral-700 leading-relaxed">
                   {complaint.merchantAppeal.content}
                 </p>
-                {complaint.merchantAppeal.evidence.length > 0 && (
-                  <div>
-                    <p className="text-xs text-neutral-500 mb-2">
-                      商家提供的证据：
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {complaint.merchantAppeal.evidence.map(evi => (
-                        <EvidenceCard
-                          key={evi.id}
-                          evidence={evi}
-                          small
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}

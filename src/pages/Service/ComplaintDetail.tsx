@@ -5,7 +5,7 @@ import {
   FileText, Upload, Image, Video, File, Send, AlertTriangle,
   Gavel, Package, Building, Calendar, DollarSign, Store,
   ShieldCheck, Copy, Eye, Paperclip, AlertCircle, X,
-  ThumbsUp, ThumbsDown
+  ThumbsUp, ThumbsDown, Headphones
 } from 'lucide-react';
 import { useComplaintStore } from '@/store/complaintStore';
 import { useAuthStore } from '@/store/authStore';
@@ -23,7 +23,7 @@ import {
 const ServiceComplaintDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getComplaintById, submitMediation, setConsumerSatisfaction, addEvidence } = useComplaintStore();
+  const { getComplaintById, submitMediation, setConsumerSatisfaction, addServiceEvidence, addCommunicationRecord } = useComplaintStore();
   const { currentUser } = useAuthStore();
 
   const [mediationContent, setMediationContent] = useState('');
@@ -153,6 +153,7 @@ const ServiceComplaintDetail: React.FC = () => {
     };
 
     setCommunicationRecords(prev => [...prev, newRecord]);
+    addCommunicationRecord(complaint.id, newRecord);
     setNewMessage('');
   };
 
@@ -181,20 +182,26 @@ const ServiceComplaintDetail: React.FC = () => {
     }
   };
 
-  // 补充证据
+  // 客服补充调查证据
   const handleAddEvidence = () => {
-    if (!complaint || !evidenceName.trim()) return;
+    if (!complaint || !evidenceName.trim() || !currentUser) return;
 
-    addEvidence(complaint.id, {
+    const newEvidence: Evidence[] = [{
+      id: generateId('evi'),
       type: evidenceType,
       url: `https://picsum.photos/seed/${Date.now()}/400/300`,
       name: evidenceName.trim(),
-      uploader: 'merchant',
-    });
+      uploadTime: new Date().toISOString(),
+      uploader: 'service',
+      uploaderName: currentUser.realName,
+    }];
+
+    addServiceEvidence(complaint.id, newEvidence);
 
     setShowAddEvidence(false);
     setEvidenceName('');
-    alert('证据已添加！');
+    setEvidenceType('document');
+    alert('客服补充证据已添加！将在"客服补充"分区独立展示。');
   };
 
   // 渲染满意度状态
@@ -265,6 +272,56 @@ const ServiceComplaintDetail: React.FC = () => {
     }
 
     return null;
+  };
+
+  const getEvidenceIcon = (type: Evidence['type']) => {
+    switch (type) {
+      case 'image': return <Image className="w-4 h-4" />;
+      case 'chat': return <MessageSquare className="w-4 h-4" />;
+      case 'video': return <Video className="w-4 h-4" />;
+      case 'document': return <File className="w-4 h-4" />;
+    }
+  };
+
+  const renderEvidenceGrid = (evidenceList: Evidence[]) => {
+    if (evidenceList.length === 0) {
+      return (
+        <div className="py-6 text-center text-neutral-400 text-sm">
+          暂无上传的证据材料
+        </div>
+      );
+    }
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {evidenceList.map((ev) => (
+          <div
+            key={ev.id}
+            className="group relative rounded-lg border border-neutral-200 overflow-hidden hover:border-primary-400 hover:shadow-md transition-all"
+          >
+            <div className="aspect-video bg-neutral-100 flex items-center justify-center">
+              {ev.type === 'image' || ev.type === 'chat' ? (
+                <img src={ev.url} alt={ev.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-neutral-400">
+                  {ev.type === 'video' ? <Video className="w-10 h-10" /> : <File className="w-10 h-10" />}
+                  <span className="text-xs">{ev.type.toUpperCase()}</span>
+                </div>
+              )}
+            </div>
+            <div className="p-2 bg-white">
+              <div className="flex items-center gap-1 text-xs text-neutral-500 mb-1">
+                {getEvidenceIcon(ev.type)}
+                <span className="truncate">{ev.name}</span>
+              </div>
+              {ev.uploaderName && (
+                <p className="text-[11px] text-neutral-400 truncate">{ev.uploaderName}</p>
+              )}
+              <p className="text-[10px] text-neutral-300 mt-1">{formatDate(ev.uploadTime, 'full')}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   // 渲染消息气泡
@@ -423,33 +480,6 @@ const ServiceComplaintDetail: React.FC = () => {
               <div className="bg-neutral-50 rounded-lg p-4">
                 <p className="text-neutral-700 leading-relaxed">{complaint.description}</p>
               </div>
-              {/* 消费者证据 */}
-              {complaint.evidence.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-neutral-600 mb-3 flex items-center gap-2">
-                    <Paperclip className="w-4 h-4" />
-                    消费者证据 ({complaint.evidence.length})
-                  </p>
-                  <div className="grid grid-cols-4 gap-3">
-                    {complaint.evidence.map((evi) => (
-                      <div
-                        key={evi.id}
-                        className="relative group rounded-lg overflow-hidden border border-neutral-200 cursor-pointer hover:border-primary-300 transition-colors"
-                      >
-                        <img
-                          src={evi.url}
-                          alt={evi.name}
-                          className="w-full h-24 object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                          <Eye className="w-5 h-5 text-white" />
-                        </div>
-                        <p className="text-xs text-neutral-500 p-2 truncate bg-white">{evi.name}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -463,37 +493,80 @@ const ServiceComplaintDetail: React.FC = () => {
               <div className="bg-info-50 rounded-lg p-4 mb-4">
                 <p className="text-neutral-700 leading-relaxed">{complaint.merchantAppeal.content}</p>
               </div>
-              {complaint.merchantAppeal.evidence.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-neutral-600 mb-3 flex items-center gap-2">
-                    <Paperclip className="w-4 h-4" />
-                    商家申诉凭证 ({complaint.merchantAppeal.evidence.length})
-                  </p>
-                  <div className="grid grid-cols-4 gap-3">
-                    {complaint.merchantAppeal.evidence.map((evi) => (
-                      <div
-                        key={evi.id}
-                        className="relative group rounded-lg overflow-hidden border border-neutral-200 cursor-pointer hover:border-info-300 transition-colors"
-                      >
-                        <img
-                          src={evi.url}
-                          alt={evi.name}
-                          className="w-full h-24 object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                          <Eye className="w-5 h-5 text-white" />
-                        </div>
-                        <p className="text-xs text-neutral-500 p-2 truncate bg-white">{evi.name}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
               <p className="text-xs text-neutral-400 mt-3">
                 提交时间：{formatDate(complaint.merchantAppeal.submittedAt)}
               </p>
             </div>
           )}
+
+          {/* 证据材料分区展示 */}
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Paperclip className="w-5 h-5 text-primary-500" />
+                <h3 className="font-semibold text-neutral-800">证据材料分区展示</h3>
+              </div>
+              <button
+                onClick={() => setShowAddEvidence(true)}
+                className="btn btn-primary btn-sm gap-1"
+              >
+                <Upload className="w-4 h-4" />
+                补充调查证据
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {/* 消费者证据 - 蓝色主题 */}
+              <div className="rounded-lg border-l-4 border-primary-500 bg-primary-50/30 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                    <User className="w-4 h-4 text-primary-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-primary-700">消费者提交的证据</p>
+                    <p className="text-xs text-neutral-500">{complaint.consumerName} · 共 {complaint.evidence.length} 份</p>
+                  </div>
+                </div>
+                {renderEvidenceGrid(complaint.evidence)}
+              </div>
+
+              {/* 商家申诉证据 - 黄色主题 */}
+              <div className="rounded-lg border-l-4 border-warning-500 bg-warning-50/30 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-warning-100 flex items-center justify-center">
+                    <Store className="w-4 h-4 text-warning-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-warning-700">商家申诉证据</p>
+                    <p className="text-xs text-neutral-500">
+                      {complaint.orderInfo.merchantName}
+                      {complaint.merchantAppeal
+                        ? ` · 共 ${complaint.merchantAppeal.evidence.length} 份 · ${formatDate(complaint.merchantAppeal.submittedAt, 'date')}`
+                        : ' · 尚未提交申诉'}
+                    </p>
+                  </div>
+                </div>
+                {renderEvidenceGrid(complaint.merchantAppeal?.evidence || [])}
+              </div>
+
+              {/* 客服补充证据 - 紫色主题 */}
+              <div className="rounded-lg border-l-4 border-purple-500 bg-purple-50/30 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                    <Headphones className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-purple-700">客服补充调查证据</p>
+                    <p className="text-xs text-neutral-500">
+                      平台客服独立调查材料
+                      {complaint.serviceEvidence ? ` · 共 ${complaint.serviceEvidence.length} 份` : ''}
+                    </p>
+                  </div>
+                </div>
+                {renderEvidenceGrid(complaint.serviceEvidence || [])}
+              </div>
+            </div>
+          </div>
 
           {/* 沟通记录 */}
           <div className="card p-6">
@@ -721,7 +794,7 @@ const ServiceComplaintDetail: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-elevation-3 max-w-md w-full mx-4 overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
-              <h3 className="font-semibold text-neutral-800">补充证据</h3>
+              <h3 className="font-semibold text-neutral-800">客服补充调查证据</h3>
               <button
                 onClick={() => setShowAddEvidence(false)}
                 className="p-1 hover:bg-neutral-100 rounded transition-colors"
@@ -730,6 +803,11 @@ const ServiceComplaintDetail: React.FC = () => {
               </button>
             </div>
             <div className="p-6 space-y-4">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg px-4 py-3">
+                <p className="text-xs text-purple-700">
+                  💡 补充的证据将独立展示，不会与消费者/商家证据混淆
+                </p>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-2">
                   证据类型

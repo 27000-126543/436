@@ -14,6 +14,12 @@ import {
   Package,
   Send,
   Check,
+  Image,
+  Video,
+  File,
+  MessageCircle,
+  Store,
+  Headphones,
 } from 'lucide-react';
 import { useComplaintStore } from '@/store/complaintStore';
 import { useAuthStore } from '@/store/authStore';
@@ -51,7 +57,7 @@ export default function MerchantComplaintDetail() {
   if (!complaint) {
     return (
       <div className="p-8">
-        <button onClick={() => navigate('/complaints')} className="btn btn-ghost mb-4">
+        <button onClick={() => navigate('/merchant/complaints')} className="btn btn-ghost mb-4">
           <ArrowLeft className="w-4 h-4 mr-1" />
           返回列表
         </button>
@@ -116,11 +122,54 @@ export default function MerchantComplaintDetail() {
     }
   };
 
+  // 证据类型图标映射
+  const getEvidenceIcon = (type: Evidence['type']) => {
+    switch (type) {
+      case 'image': return <Image className="w-4 h-4" />;
+      case 'chat': return <MessageCircle className="w-4 h-4" />;
+      case 'video': return <Video className="w-4 h-4" />;
+      case 'document': return <File className="w-4 h-4" />;
+    }
+  };
+
+  // 证据网格渲染
+  const renderEvidenceGrid = (evidenceList: Evidence[]) => {
+    if (evidenceList.length === 0) {
+      return <div className="py-5 text-center text-neutral-400 text-sm">暂无上传的证据材料</div>;
+    }
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {evidenceList.map((ev) => (
+          <div key={ev.id} className="group relative rounded-lg border border-neutral-200 overflow-hidden hover:border-primary-400 hover:shadow-sm transition-all">
+            <div className="aspect-video bg-neutral-100 flex items-center justify-center">
+              {ev.type === 'image' || ev.type === 'chat' ? (
+                <img src={ev.url} alt={ev.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-neutral-400">
+                  {ev.type === 'video' ? <Video className="w-10 h-10" /> : <File className="w-10 h-10" />}
+                  <span className="text-xs">{ev.type.toUpperCase()}</span>
+                </div>
+              )}
+            </div>
+            <div className="p-2 bg-white">
+              <div className="flex items-center gap-1 text-xs text-neutral-500 mb-1">
+                {getEvidenceIcon(ev.type)}
+                <span className="truncate">{ev.name}</span>
+              </div>
+              {ev.uploaderName && <p className="text-[11px] text-neutral-400 truncate">{ev.uploaderName}</p>}
+              <p className="text-[10px] text-neutral-300 mt-1">{formatDate(ev.uploadTime, 'full')}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/complaints')} className="btn btn-ghost !p-2">
+          <button onClick={() => navigate('/merchant/complaints')} className="btn btn-ghost !p-2">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
@@ -272,31 +321,6 @@ export default function MerchantComplaintDetail() {
                   {complaint.description}
                 </p>
               </div>
-              {complaint.evidence.length > 0 && (
-                <div className="ml-13">
-                  <p className="text-sm text-neutral-500 mb-2 flex items-center gap-1.5">
-                    <Paperclip className="w-4 h-4" />
-                    消费者上传的证据 ({complaint.evidence.length})
-                  </p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {complaint.evidence.map((evi) => (
-                      <div
-                        key={evi.id}
-                        className="relative group aspect-square rounded-lg overflow-hidden border border-neutral-200 bg-neutral-50"
-                      >
-                        <img
-                          src={evi.url}
-                          alt={evi.name}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                          <FileText className="w-6 h-6 text-white" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -387,6 +411,70 @@ export default function MerchantComplaintDetail() {
             </div>
           )}
 
+          {/* 证据材料分区展示 - 独立卡片 */}
+          <div className="card overflow-hidden">
+            <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50">
+              <h3 className="font-semibold text-neutral-800 flex items-center gap-2">
+                <Paperclip className="w-5 h-5 text-primary-500" />
+                证据材料分区展示
+              </h3>
+            </div>
+            <div className="p-5 space-y-5">
+              {/* 消费者证据 - 蓝色主题 */}
+              <div className="rounded-lg border-l-4 border-primary-500 bg-primary-50/30 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                    <User className="w-4 h-4 text-primary-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-primary-700">消费者提交的证据</p>
+                    <p className="text-xs text-neutral-500">
+                      {complaint.consumerName} · 共 {complaint.evidence.length} 份
+                    </p>
+                  </div>
+                </div>
+                {renderEvidenceGrid(complaint.evidence)}
+              </div>
+
+              {/* 商家申诉证据 - 黄色主题 */}
+              <div className="rounded-lg border-l-4 border-warning-500 bg-warning-50/30 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-warning-100 flex items-center justify-center">
+                    <Store className="w-4 h-4 text-warning-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-warning-700">我提交的申诉证据</p>
+                    <p className="text-xs text-neutral-500">
+                      {complaint.orderInfo.merchantName}
+                      {complaint.merchantAppeal
+                        ? ` · 共 ${complaint.merchantAppeal.evidence.length} 份 · ${formatDate(complaint.merchantAppeal.submittedAt, 'date')}`
+                        : ' · 尚未提交申诉'}
+                    </p>
+                  </div>
+                </div>
+                {renderEvidenceGrid(complaint.merchantAppeal?.evidence || [])}
+              </div>
+
+              {/* 客服补充证据 - 紫色主题 */}
+              {complaint.serviceEvidence && complaint.serviceEvidence.length > 0 && (
+                <div className="rounded-lg border-l-4 border-purple-500 bg-purple-50/30 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                      <Headphones className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-purple-700">客服补充调查证据</p>
+                      <p className="text-xs text-neutral-500">
+                        平台客服独立调查材料 · 共 {complaint.serviceEvidence.length} 份
+                      </p>
+                    </div>
+                  </div>
+                  {renderEvidenceGrid(complaint.serviceEvidence)}
+                </div>
+              )}
+            </div>
+          </div>
+
           {complaint.merchantAppeal && (
             <div className="card overflow-hidden">
               <div className="px-5 py-4 border-b border-neutral-200 bg-success-50/50">
@@ -398,34 +486,12 @@ export default function MerchantComplaintDetail() {
                   </span>
                 </h3>
               </div>
-              <div className="p-5 space-y-4">
+              <div className="p-5">
                 <div className="bg-neutral-50 rounded-lg p-4">
                   <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">
                     {complaint.merchantAppeal.content}
                   </p>
                 </div>
-                {complaint.merchantAppeal.evidence.length > 0 && (
-                  <div>
-                    <p className="text-sm text-neutral-500 mb-2 flex items-center gap-1.5">
-                      <Paperclip className="w-4 h-4" />
-                      申诉证据 ({complaint.merchantAppeal.evidence.length})
-                    </p>
-                    <div className="grid grid-cols-4 gap-2">
-                      {complaint.merchantAppeal.evidence.map((evi) => (
-                        <div
-                          key={evi.id}
-                          className="relative aspect-square rounded-lg overflow-hidden border border-neutral-200"
-                        >
-                          <img
-                            src={evi.url}
-                            alt={evi.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}

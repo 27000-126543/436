@@ -250,7 +250,7 @@ export default function MerchantCompensationList() {
                     </td>
                     <td className="table-cell">
                       <button
-                        onClick={() => navigate(`/complaints/${c.complaintId}`)}
+                        onClick={() => navigate(`/merchant/complaints/${c.complaintId}`)}
                         className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-mono"
                       >
                         {c.complaintId.slice(0, 8)}...

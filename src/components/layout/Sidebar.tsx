@@ -37,24 +37,24 @@ const roleMenus: Record<UserRole, MenuGroup[]> = {
     {
       label: '主要功能',
       items: [
-        { path: '/', label: '首页概览', icon: Home },
-        { path: '/complaints', label: '我的投诉', icon: FileText },
-        { path: '/complaints/new', label: '发起投诉', icon: ShieldAlert },
+        { path: '/consumer', label: '首页概览', icon: Home },
+        { path: '/consumer/complaints', label: '我的投诉', icon: FileText },
+        { path: '/consumer/complaints/new', label: '发起投诉', icon: ShieldAlert },
       ],
     },
     {
       label: '查询中心',
       items: [
-        { path: '/arbitration', label: '仲裁查询', icon: Gavel },
-        { path: '/compensation', label: '赔付记录', icon: CreditCard },
+        { path: '/consumer/awards', label: '仲裁查询', icon: Gavel },
+        { path: '/consumer/awards', label: '赔付记录', icon: CreditCard },
         { path: '/messages', label: '消息通知', icon: MessageSquare },
       ],
     },
     {
       label: '服务支持',
       items: [
-        { path: '/rules', label: '平台规则', icon: FileBadge },
-        { path: '/settings', label: '账户设置', icon: Settings },
+        { path: '/consumer', label: '平台规则', icon: FileBadge },
+        { path: '/consumer', label: '账户设置', icon: Settings },
       ],
     },
   ],
@@ -62,24 +62,24 @@ const roleMenus: Record<UserRole, MenuGroup[]> = {
     {
       label: '主要功能',
       items: [
-        { path: '/', label: '首页概览', icon: Home },
-        { path: '/complaints', label: '投诉处理', icon: ClipboardList },
-        { path: '/arbitration', label: '仲裁案件', icon: Gavel },
+        { path: '/merchant', label: '首页概览', icon: Home },
+        { path: '/merchant/complaints', label: '投诉处理', icon: ClipboardList },
+        { path: '/merchant/complaints', label: '仲裁案件', icon: Gavel },
       ],
     },
     {
       label: '店铺管理',
       items: [
-        { path: '/credit', label: '信用评级', icon: Award },
-        { path: '/compensation', label: '赔付记录', icon: CreditCard },
+        { path: '/merchant/credit', label: '信用评级', icon: Award },
+        { path: '/merchant/compensations', label: '赔付记录', icon: CreditCard },
         { path: '/messages', label: '消息通知', icon: BellRing },
       ],
     },
     {
       label: '服务支持',
       items: [
-        { path: '/rules', label: '平台规则', icon: FileBadge },
-        { path: '/settings', label: '店铺设置', icon: Settings },
+        { path: '/merchant', label: '平台规则', icon: FileBadge },
+        { path: '/merchant', label: '店铺设置', icon: Settings },
       ],
     },
   ],
@@ -87,24 +87,24 @@ const roleMenus: Record<UserRole, MenuGroup[]> = {
     {
       label: '工作台',
       items: [
-        { path: '/', label: '首页概览', icon: Home },
-        { path: '/assignments', label: '待分派', icon: Users },
-        { path: '/complaints', label: '调解案件', icon: ClipboardList },
+        { path: '/service', label: '首页概览', icon: Home },
+        { path: '/service/pool', label: '待分派', icon: Users },
+        { path: '/service/complaints', label: '调解案件', icon: ClipboardList },
       ],
     },
     {
       label: '案件管理',
       items: [
-        { path: '/mediation', label: '调解记录', icon: MessageSquare },
-        { path: '/arbitration', label: '仲裁移交', icon: Gavel },
-        { path: '/statistics', label: '业绩统计', icon: BarChart3 },
+        { path: '/service/complaints', label: '调解记录', icon: MessageSquare },
+        { path: '/service/complaints', label: '仲裁移交', icon: Gavel },
+        { path: '/service', label: '业绩统计', icon: BarChart3 },
       ],
     },
     {
       label: '系统',
       items: [
         { path: '/messages', label: '系统消息', icon: BellRing },
-        { path: '/settings', label: '个人设置', icon: Settings },
+        { path: '/service', label: '个人设置', icon: Settings },
       ],
     },
   ],
@@ -112,24 +112,24 @@ const roleMenus: Record<UserRole, MenuGroup[]> = {
     {
       label: '工作台',
       items: [
-        { path: '/', label: '首页概览', icon: Home },
-        { path: '/arbitration', label: '待审案件', icon: Scale },
-        { path: '/awards', label: '裁决记录', icon: FileText },
+        { path: '/arbitrator', label: '首页概览', icon: Home },
+        { path: '/arbitrator/cases', label: '待审案件', icon: Scale },
+        { path: '/arbitrator/cases', label: '裁决记录', icon: FileText },
       ],
     },
     {
       label: '案件管理',
       items: [
-        { path: '/evidence', label: '证据审阅', icon: FileBadge },
-        { path: '/hearings', label: '听证安排', icon: Users },
-        { path: '/statistics', label: '审理统计', icon: BarChart3 },
+        { path: '/arbitrator/cases', label: '证据审阅', icon: FileBadge },
+        { path: '/arbitrator/cases', label: '听证安排', icon: Users },
+        { path: '/arbitrator/review', label: '审理统计', icon: BarChart3 },
       ],
     },
     {
       label: '系统',
       items: [
         { path: '/messages', label: '系统消息', icon: BellRing },
-        { path: '/settings', label: '个人设置', icon: Settings },
+        { path: '/arbitrator', label: '个人设置', icon: Settings },
       ],
     },
   ],
@@ -137,25 +137,25 @@ const roleMenus: Record<UserRole, MenuGroup[]> = {
     {
       label: '运营中心',
       items: [
-        { path: '/', label: '运营概览', icon: Home },
-        { path: '/complaints', label: '投诉总览', icon: ClipboardList },
-        { path: '/arbitration', label: '仲裁管理', icon: Scale },
+        { path: '/operator', label: '运营概览', icon: Home },
+        { path: '/operator', label: '投诉总览', icon: ClipboardList },
+        { path: '/operator/reports', label: '仲裁管理', icon: Scale },
       ],
     },
     {
       label: '平台管理',
       items: [
-        { path: '/users', label: '用户管理', icon: Users },
-        { path: '/credit', label: '信用体系', icon: Award },
-        { path: '/rules', label: '规则配置', icon: FileBadge },
-        { path: '/reports', label: '数据报表', icon: BarChart3 },
+        { path: '/operator', label: '用户管理', icon: Users },
+        { path: '/operator', label: '信用体系', icon: Award },
+        { path: '/operator/rules', label: '规则配置', icon: FileBadge },
+        { path: '/operator/reports', label: '数据报表', icon: BarChart3 },
       ],
     },
     {
       label: '系统',
       items: [
         { path: '/messages', label: '消息中心', icon: BellRing },
-        { path: '/settings', label: '系统设置', icon: Settings },
+        { path: '/operator', label: '系统设置', icon: Settings },
       ],
     },
   ],

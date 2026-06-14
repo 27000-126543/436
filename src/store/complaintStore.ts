@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import type { Complaint, Evidence, MediationRecord, Award, MerchantAppeal, Compensation, CreditRecord, Message, ComplaintType, ComplaintStatus } from '../types';
+import type { Complaint, Evidence, MediationRecord, Award, MerchantAppeal, Compensation, CreditRecord, Message, ComplaintType, ComplaintStatus, CommunicationRecord } from '../types';
 import { mockComplaints, mockCompensations, mockCreditRecords, mockMessages, mockUsers } from '../mock/data';
 import { generateId } from '../utils/format';
 import { calculateCompensation, calculateCreditChange, determinePriority, autoAssignService, autoAssignArbitrator } from '../utils/calculation';
+import { useAuthStore } from './authStore';
 
 interface ComplaintState {
   complaints: Complaint[];
@@ -27,6 +28,8 @@ interface ComplaintState {
   markAllMessagesRead: (recipientId: string) => void;
   getUnreadCount: (recipientId: string) => number;
   addEvidence: (complaintId: string, evidence: Omit<Evidence, 'id' | 'uploadTime'>) => void;
+  addServiceEvidence: (complaintId: string, evidenceList: Evidence[]) => void;
+  addCommunicationRecord: (complaintId: string, record: CommunicationRecord) => void;
   autoProcessAssignments: () => void;
 }
 
@@ -351,6 +354,54 @@ export const useComplaintStore = create<ComplaintState>((set, get) => ({
           : c
       ),
     }));
+  },
+
+  addCommunicationRecord: (complaintId, record) => {
+    set(state => ({
+      complaints: state.complaints.map(c =>
+        c.id === complaintId
+          ? {
+              ...c,
+              mediationRecord: c.mediationRecord
+                ? {
+                    ...c.mediationRecord,
+                    communicationRecords: [...c.mediationRecord.communicationRecords, record],
+                  }
+                : c.mediationRecord,
+              updatedAt: new Date().toISOString(),
+            }
+          : c
+      ),
+    }));
+  },
+
+  addServiceEvidence: (complaintId, evidenceList) => {
+    set(state => ({
+      complaints: state.complaints.map(c =>
+        c.id === complaintId
+          ? {
+              ...c,
+              serviceEvidence: [
+                ...(c.serviceEvidence || []),
+                ...evidenceList.map(e => ({ ...e, uploadTime: new Date().toISOString() })),
+              ],
+              updatedAt: new Date().toISOString(),
+            }
+          : c
+      ),
+    }));
+
+    const complaint = useComplaintStore.getState().getComplaintById(complaintId);
+    const currentUser = useAuthStore.getState().currentUser;
+    if (complaint && currentUser) {
+      useComplaintStore.getState().addCommunicationRecord(complaintId, {
+        id: `comm-${Date.now()}`,
+        sender: 'service',
+        senderName: currentUser.realName,
+        content: `补充了 ${evidenceList.length} 份调查证据材料`,
+        createdAt: new Date().toISOString(),
+      });
+    }
   },
 
   autoProcessAssignments: () => {

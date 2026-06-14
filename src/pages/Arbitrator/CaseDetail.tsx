@@ -22,6 +22,8 @@ import {
   Download,
   Eye,
   X,
+  Headphones,
+  Paperclip,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useComplaintStore } from '@/store/complaintStore';
@@ -459,6 +461,86 @@ export default function CaseDetail() {
           </div>
         </div>
       </div>
+
+      {/* 客服补充调查证据 - 紫色主题（独立分区，仲裁员重点参考） */}
+      {complaint.serviceEvidence && complaint.serviceEvidence.length > 0 && (
+        <div className="card overflow-hidden border-purple-200 bg-gradient-to-r from-purple-50/50 via-white to-indigo-50/30">
+          <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-5 py-3.5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5 text-white">
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                <Headphones size={16} />
+              </div>
+              <div>
+                <h3 className="font-semibold">客服补充调查证据</h3>
+                <p className="text-xs text-purple-100">平台客服独立调查材料，供仲裁参考</p>
+              </div>
+            </div>
+            <div className="text-right text-xs text-purple-100">
+              <p>共</p>
+              <p className="text-white font-medium">{complaint.serviceEvidence.length} 份材料</p>
+            </div>
+          </div>
+          <div className="p-5">
+            {/* 证据网格 */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {complaint.serviceEvidence.map((evi) => {
+                const typeIcon = () => {
+                  switch (evi.type) {
+                    case 'image': return <ImageIcon size={14} />;
+                    case 'chat': return <MessageSquare size={14} />;
+                    case 'video': return <Video size={14} />;
+                    case 'document': return <File size={14} />;
+                  }
+                };
+                return (
+                  <button
+                    key={evi.id}
+                    onClick={() => evi.type === 'image' && setPreviewImage(evi)}
+                    className={cn(
+                      'group relative aspect-square rounded-lg overflow-hidden border transition-all',
+                      'border-purple-200 hover:border-purple-400',
+                      evi.type === 'image' ? 'cursor-zoom-in' : 'cursor-pointer'
+                    )}
+                  >
+                    {evi.type === 'image' ? (
+                      <img src={evi.url} alt={evi.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-purple-50 text-purple-600">
+                        {typeIcon()}
+                        <span className="text-[10px] font-medium px-1 text-center truncate w-full">{evi.name}</span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-[10px] text-white truncate">{evi.name}</p>
+                      {evi.uploaderName && <p className="text-[9px] text-purple-200 truncate">{evi.uploaderName}</p>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 调解记录摘要（可选展示） */}
+            {complaint.mediationRecord && (
+              <div className="mt-4 pt-4 border-t border-purple-100">
+                <p className="text-xs font-medium text-purple-700 mb-2 flex items-center gap-1">
+                  <MessageSquare size={12} />
+                  客服调解摘要
+                </p>
+                <div className="bg-white/60 rounded-lg p-3 text-sm text-neutral-600 border border-purple-100">
+                  <p className="mb-1">
+                    <span className="text-neutral-500">调解员：</span>
+                    <span className="font-medium">{complaint.mediationRecord.serviceName}</span>
+                  </p>
+                  <p className="leading-relaxed">{complaint.mediationRecord.content}</p>
+                  <p className="mt-2 pt-2 border-t border-purple-100/50 text-xs text-neutral-500">
+                    建议赔付：<span className="font-semibold text-purple-700">{formatCurrency(complaint.mediationRecord.proposedAmount)}</span>
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="card overflow-hidden border-primary-200 bg-gradient-to-b from-primary-50/30 to-white">
         <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-5 py-4 flex items-center justify-between">

@@ -138,21 +138,21 @@ export default function ServiceDashboard() {
       label: '我的待处理投诉',
       count: myPending.length,
       type: 'primary' as const,
-      path: '/complaints',
+      path: '/service/complaints',
       desc: '需要您处理的投诉',
     },
     {
       label: '待分派投诉池',
       count: pendingPool.length,
       type: 'info' as const,
-      path: '/assignments',
+      path: '/service/pool',
       desc: '可领取或分派给其他专员',
     },
     {
       label: '即将超时案件',
       count: urgentCount,
       type: 'warning' as const,
-      path: '/complaints',
+      path: '/service/complaints',
       desc: '超过18小时未完成',
     },
     {
@@ -353,7 +353,7 @@ export default function ServiceDashboard() {
               )}
             </div>
             <button
-              onClick={() => navigate('/complaints')}
+              onClick={() => navigate('/service/complaints')}
               className="text-sm text-primary-600 hover:text-primary-700 font-medium"
             >
               查看全部
@@ -377,7 +377,7 @@ export default function ServiceDashboard() {
                 return (
                   <div
                     key={c.id}
-                    onClick={() => navigate(`/complaints/${c.id}`)}
+                    onClick={() => navigate(`/service/complaints/${c.id}`)}
                     className={`px-5 py-4 cursor-pointer hover:bg-neutral-50 transition-colors ${
                       isUrgent ? 'bg-warning-50/50 border-l-4 border-l-warning-500' : ''
                     }`}
@@ -439,7 +439,7 @@ export default function ServiceDashboard() {
               )}
             </div>
             <button
-              onClick={() => navigate('/assignments')}
+              onClick={() => navigate('/service/pool')}
               className="text-sm text-primary-600 hover:text-primary-700 font-medium"
             >
               分派管理
@@ -455,7 +455,7 @@ export default function ServiceDashboard() {
               {pendingPool.slice(0, 5).map((c) => (
                 <div
                   key={c.id}
-                  onClick={() => navigate('/assignments')}
+                  onClick={() => navigate('/service/pool')}
                   className={`px-5 py-4 cursor-pointer hover:bg-neutral-50 transition-colors ${
                     c.priority === 'high'
                       ? 'bg-danger-50/30 border-l-4 border-l-danger-500'

@@ -221,7 +221,7 @@ export default function CaseList() {
             return (
               <div
                 key={complaint.id}
-                onClick={() => navigate(`/arbitrator/case/${complaint.id}`)}
+                onClick={() => navigate(`/arbitrator/cases/${complaint.id}`)}
                 className={cn(
                   'card card-hover cursor-pointer p-5 transition-all',
                   highAmt && 'border-warning-300 bg-gradient-to-r from-warning-50/50 to-transparent'
@@ -339,7 +339,7 @@ export default function CaseList() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/arbitrator/case/${complaint.id}`);
+                        navigate(`/arbitrator/cases/${complaint.id}`);
                       }}
                       className={cn(
                         'btn gap-1.5',

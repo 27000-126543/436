@@ -271,7 +271,7 @@ const ComplaintList: React.FC = () => {
                       index % 2 === 0 && "bg-neutral-50/50",
                       complaint.priority === 'high' && "bg-danger-50/30"
                     )}
-                    onClick={() => navigate(`/service/complaint/${complaint.id}`)}
+                    onClick={() => navigate(`/service/complaints/${complaint.id}`)}
                   >
                     <td className="table-cell">
                       <span className="font-mono text-sm font-medium text-primary-600">
@@ -338,7 +338,7 @@ const ComplaintList: React.FC = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/service/complaint/${complaint.id}`);
+                          navigate(`/service/complaints/${complaint.id}`);
                         }}
                         className="btn btn-ghost gap-1 text-primary-600 hover:text-primary-700 hover:bg-primary-50"
                       >
